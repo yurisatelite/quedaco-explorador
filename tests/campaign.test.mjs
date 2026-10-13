@@ -29,16 +29,17 @@ test('players cannot assign NPCs and actor permissions protect names', async () 
   assert.equal(f.api.getNPCs('sceneA:2:2').present.length,0);
   assert.equal(f.api.getNPCCandidates().length,0);
 });
-test('public diary note captures calendar date, timeline and immutable location even after renumbering', async () => {
+test('public diary note is delegated to the Calendar API with an immutable place reference', async () => {
   const f = await uiFixture(); await f.api.setCurrentLocation('sceneA:2:2');
   const result = await f.api.createNote({title:'Chegada à ponte',description:'Nossa primeira visita.'});
-  const page = f.documents.get(result.uuid), record = page.flags['opath-calendar'].record;
+  const record = f.calls.saved[0];
   assert.equal(record.visibility,'public'); assert.equal(record.absoluteDay,83763); assert.equal(record.timelineId,'main');
+  assert.equal(record.place.ref,'sceneA:2:2'); assert.equal(record.place.source,ID);
   assert.equal(result.location.hexId,'sceneA:2:2'); assert.match(result.location.dateLabel,/Primeiro Ciclo/);
   await f.api.setActive('sceneA:0:0',false); await f.api.renumberAreas('sceneA');
   assert.equal(f.api.listNotes('sceneA:2:2')[0].title,'Chegada à ponte');
   assert.equal(f.api.getCurrentLocation().id,'sceneA:2:2');
-  assert.equal(page.flags[ID].location.hexId,'sceneA:2:2');
+  assert.equal(await f.api.openNote(result.uuid),f.documents.get(result.uuid));
 });
 test('player note uses only the GM location and date; absent calendar or disabled area blocks creation', async () => {
   const f = await uiFixture(); await f.api.setCurrentLocation('sceneA:2:2'); f.game.user.isGM = false;
@@ -49,26 +50,24 @@ test('player note uses only the GM location and date; absent calendar or disable
   f.game.user.isGM = true; await f.api.setActive('sceneA:2:2',false);
   assert.equal(f.api.getCurrentLocation(),null);
   await assert.rejects(() => f.api.createNote({title:'x',description:'y'}),/localização/);
-  f.game.modules.get('opath-calendar').active = false;
+  f.game.modules.get('quedaco-calendario').active = false;
   await assert.rejects(() => f.api.createNote({title:'x',description:'y'}),/Calendário/);
+  assert.deepEqual(f.api.listNotes('sceneA:2:2'),[]);
 });
-test('shared mirrors inherit location without duplicating sources; inaccessible notes stay out', async () => {
-  const f = await uiFixture(); await f.api.setCurrentLocation('sceneA:2:2');
-  const note = await f.api.createNote({title:'Pública',description:'texto'}), page = f.documents.get(note.uuid);
-  const mirror = {id:'mirror',uuid:'JournalEntry.mirror',name:page.name,pages:[],flags:{'opath-calendar':{sourceUuid:page.uuid,record:page.flags['opath-calendar'].record}},testUserPermission:() => true,
-    async setFlag(module,key,value) {this.flags[module] ??= {}; this.flags[module][key] = structuredClone(value);}};
-  f.game.journal.set(mirror.id,mirror); await f.api.mirrorLocation(page);
-  assert.equal(mirror.flags[ID].location.hexId,'sceneA:2:2');
-  assert.equal(f.api.listNotes('sceneA:2:2').length,1);
-  page.testUserPermission = () => false;
-  assert.equal(f.api.listNotes('sceneA:2:2')[0].uuid,mirror.uuid);
-  mirror.testUserPermission = () => false;
-  assert.equal(f.api.listNotes('sceneA:2:2').length,0);
+test('the Explorer never reads or writes documents of other modules (only public APIs)', async () => {
+  const f = await uiFixture(), {readFile} = await import('node:fs/promises');
+  for (const file of ['campaign.mjs','main.mjs','app.mjs','api.mjs']) {
+    const source = await readFile(new URL(`../src/${file}`,import.meta.url),'utf8');
+    assert.doesNotMatch(source,/\/modules\/quedaco|importModule|opath-calendar|mirrorLocation/);
+    assert.doesNotMatch(source,/setFlag\(|flags\??\.quedaco/);
+  }
+  await f.api.setCurrentLocation('sceneA:2:2'); await f.api.createNote({title:'a',description:'b'});
+  assert.equal(f.documents.size,1);
 });
-test('catalog bridge reads the installed Quedaco regions and roles and allows custom tags', async () => {
+test('catalog bridge reads the QUEDAÇO public API and allows custom tags', async () => {
   const f = await uiFixture();
-  f.game.modules = new Collection([['quedaco',{active:true}]]);
-  const bridge = createCampaignBridge(f.game,f.api,{importModule:async path => path.includes('book-world') ? {REGIONS:[{id:'mirmir',name:'Deserto de Mirmir',summary:'Não copiar esta prosa'}],PLACES:[]} : {NPC_ROLES:{merchant:'Mercador'}}});
+  const bridge = createCampaignBridge(f.game,f.api);
+  f.game.modules.get('quedaco').api.getExplorerCatalog = () => ({regions:[{id:'mirmir',name:'Deserto de Mirmir',summary:'Não copiar esta prosa'}],places:[],tags:[{id:'role:merchant',label:'Mercador'}]});
   await bridge.initialize();
   assert.equal(bridge.getCatalog().regions[0].id,'mirmir');
   assert.equal(bridge.getCatalog().regions[0].summary,undefined);
@@ -76,4 +75,20 @@ test('catalog bridge reads the installed Quedaco regions and roles and allows cu
   await bridge.createTag(' Ruína '); await bridge.createTag('ruína');
   assert.equal(bridge.getCatalog().tags.length,2);
   f.game.user.isGM = false; await assert.rejects(() => bridge.createTag('Nova'),/Mestra/);
+});
+test('QUEDAÇO main absent or incompatible: exploration stays, NPC features report unavailability', async () => {
+  const f = await uiFixture(), actor = npc('merchantB'); f.game.actors.set(actor.id,actor);
+  f.game.modules.get('quedaco').api = {family:'quedaco'};
+  assert.deepEqual(f.api.getNPCs('sceneA:2:2'),{present:[],regional:[]});
+  await assert.rejects(() => f.api.assignNPC(actor.uuid,'sceneA:2:2'),/QUEDAÇO/);
+  assert.equal(f.api.getHex('sceneA:2:2').name,'Travessia da Aurora');
+});
+
+test('main.mjs publica o descritor do protocolo v1 e emite quedaco:register', async () => {
+  const {readFile} = await import('node:fs/promises');
+  const source = await readFile(new URL('../src/main.mjs',import.meta.url),'utf8');
+  assert.match(source,/family: 'quedaco'/); assert.match(source,/contractVersion: 1/);
+  assert.match(source,/Hooks\.callAll\('quedaco:register', descriptor\)/); assert.match(source,/module\.api = descriptor/);
+  const manifest = JSON.parse(await readFile(new URL('../module.json',import.meta.url),'utf8'));
+  assert.equal(manifest.title,'QUEDAÇO - Explorador'); assert.equal(manifest.id,'quedaco-explorador');
 });

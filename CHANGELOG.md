@@ -1,5 +1,16 @@
 # Histórico
 
+## 0.3.0 · 13/10/2026 · Protocolo de Integração QUEDAÇO
+
+- Título `QUEDAÇO - Explorador`; id `quedaco-explorador` preservado. Dados salvos nas cenas intactos.
+- `contractVersion`: 1. Capabilities: `mapExplorer`, `areaDatabase`, `currentLocation`, `npcPlacement`, `areaNotes`.
+- Métodos públicos: `open`, `getStatus` e a API de áreas já existente (getHex, listHexes, updateHex, setActive, renumberAreas, selectHex…) mais controle de campanha (getCatalog, createTag, getNPCs, assignNPC, removeNPC, setCurrentLocation, getCampaignContext, listNotes, createNote, openNote).
+- Integrações opcionais (só por API pública, verificando family/contractVersion/capability): QUEDAÇO principal (`npcDatabase`, `explorerCatalog`, `npcLocation`) e QUEDAÇO - Calendário (`calendar`, `saveLocationRecord`, `listPlaceNotes`, `openRecord`).
+- Removidos os imports de arquivos de outros módulos, as gravações em flags de Actors e o espelhamento de diários: NPCs são atribuídos pelo QUEDAÇO e as notas ficam com o Calendário (o Explorador só informa o local).
+- Sem os outros módulos: exploração, nomes/números, bordas, seleção múltipla, terreno, regiões, tags locais e localização do grupo continuam funcionando; as funções integradas avisam que estão indisponíveis.
+- Evento `quedaco:register` emitido com o descritor congelado; `quedaco-explorador:ready` mantido.
+- Requer QUEDAÇO ≥ 0.15.0 e Calendário ≥ 0.3.1 para as funções integradas.
+
 ## 0.2.0 · 13/10/2026
 
 - Aba Explorador na configuração nativa da cena, com os campos salvos pelo botão normal do Foundry.

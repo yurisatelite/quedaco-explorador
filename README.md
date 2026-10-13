@@ -52,6 +52,8 @@ Ainda não há viagem automática de tokens, custo/tempo de jornada, pincel cont
 
 ## Desenvolvimento e verificação
 
+Requisito para a próxima atualização: [Protocolo de Integração Quedaço](docs/PROTOCOLO-INTEGRACAO-QUEDACO.md). A [fila de implementação](docs/PROXIMA-ATUALIZACAO.md) registra as mudanças e testes necessários; a versão 0.2.0 ainda não implementa esse protocolo.
+
 ```powershell
 npm install
 npm test

@@ -45,19 +45,30 @@ export async function uiFixture() {
     if (additive && toggle && selections.has(h.id)) selections.delete(h.id); else selections.add(h.id);
     selected = [...selections].at(-1);
   }, emit: (name, data) => events.push({name, data})});
-  const documents = new Map();
-  const bridge = createCampaignBridge(game,api,{resolveDocument:uuid => documents.get(uuid)});
+  const documents = new Map(), calls = {saved: [], npcWrites: []};
+  const bridge = createCampaignBridge(game,api);
   Object.assign(api,bridge);
   bridge.registerCatalog({regions:[{id:'forah',name:'Protetorado de Forah'},{id:'mirmir',name:'Deserto de Mirmir'}],places:[],tags:[{id:'role:merchant',label:'Mercador'},{id:'rota',label:'Rota'}]});
-  game.modules.set('opath-calendar',{active:true,api:{getCurrentDate:() => ({day:4,cycleName:'Primeiro Ciclo',year:349,absoluteDay:83763,mode:'lunar'}),getTimelines:() => ({activeId:'main'})}});
+  // Provedores públicos simulados (o Explorador só os alcança pela API da família).
+  game.modules.set('quedaco',{active:true,api:{family:'quedaco',contractVersion:1,id:'quedaco',capabilities:{npcDatabase:true,explorerCatalog:true,npcLocation:true},
+    listNpcs: () => Array.from(game.actors).filter(a => a.flags?.quedaco?.npc && a.testUserPermission(game.user,'OBSERVER')).map(a => ({uuid:a.uuid,name:a.name,img:a.img,role:a.flags.quedaco.npc.role,regionId:a.flags.quedaco.npc.regionId,explorerLocation:a.flags.quedaco.npc.explorerLocation ?? null})),
+    getExplorerCatalog: () => ({regions:[],places:[],tags:[]}),
+    setNpcExplorerLocation: async (uuid, location) => {
+      if (!game.user.isGM) throw Error('Somente a Mestra pode atribuir NPCs a uma área.');
+      const actor = game.actors.get(uuid.replace('Actor.',''));
+      calls.npcWrites.push({uuid,location}); actor.flags.quedaco.npc.explorerLocation = location ? {hexId:location.hexId,sceneId:location.sceneId} : null;
+    }}});
   const book = {id:'book',uuid:'JournalEntry.book',name:'Diário da Mestra',pages:[],flags:{},testUserPermission:() => true,sheet:{render() {}}};
   game.journal.set(book.id,book);
-  bridge.registerNotesProvider({save:async input => {
-    const id = `note${book.pages.length+1}`;
-    const page = {id,uuid:`JournalEntry.book.JournalEntryPage.${id}`,name:input.title,documentName:'JournalEntryPage',parent:book,isOwner:true,flags:{'opath-calendar':{record:input}},testUserPermission:() => true,
-      async setFlag(module,key,value) {this.flags[module] ??= {}; this.flags[module][key] = structuredClone(value);}};
-    book.pages.push(page); documents.set(page.uuid,page); return page.uuid;
-  }});
+  game.modules.set('quedaco-calendario',{active:true,api:{family:'quedaco',contractVersion:1,id:'quedaco-calendario',capabilities:{calendar:true},
+    getCurrentDate:() => ({day:4,cycleName:'Primeiro Ciclo',year:349,absoluteDay:83763,mode:'lunar'}),getTimelines:() => ({activeId:'main'}),
+    saveLocationRecord: async input => {
+      calls.saved.push(input);
+      const id = `note${book.pages.length+1}`, page = {id,uuid:`JournalEntry.book.JournalEntryPage.${id}`,title:input.title,record:input};
+      book.pages.push(page); documents.set(page.uuid,page); return page.uuid;
+    },
+    listPlaceNotes: ref => book.pages.filter(p => p.record.place?.ref === ref).map(p => ({uuid:p.uuid,title:p.title,authorId:'gm',absoluteDay:p.record.absoluteDay,timelineId:p.record.timelineId,visibility:p.record.visibility,dateLabel:`Dia ${p.record.absoluteDay}`})),
+    openRecord: async uuid => documents.get(uuid)}});
   await api.configureScene(scene.id, {enabled: true});
   const records = [
     {i: 2, j: 2, state: 'explored', name: 'Travessia da Aurora', terrain: 'Floresta', region: 'Protetorado de Forah', regionId:'forah', tags: ['rota', 'encontro'], description: 'Uma antiga estrada corta a floresta. As marcas de uma caravana seguem até a ponte.', journalUuid: 'JournalEntry.diaryA'},
@@ -71,5 +82,5 @@ export async function uiFixture() {
   const report = action => Promise.resolve().then(action).catch(e => errors.push(e.message));
   const App = createExplorerApp({getApi: () => api, getSelection: () => selected, getSelections:() => [...selections], clearSelection:() => {selections.clear(); selected = null;}, report});
   const app = new App(); app.sceneId = scene.id;
-  return {game, scene, api, app, events, errors, documents};
+  return {game, scene, api, app, events, errors, documents, calls};
 }

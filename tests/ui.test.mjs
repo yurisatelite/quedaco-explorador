@@ -63,7 +63,7 @@ test('empty world and square grid return actionable UI and manifest ships only r
   assert.match(template(await f.app._prepareContext()), /grade hexagonal/);
   f.game.scenes.clear(); assert.match(template(await f.app._prepareContext()), /Nenhuma cena disponível/);
   const manifest = JSON.parse(await readFile(new URL('../module.json', import.meta.url)));
-  assert.equal(manifest.title, 'Quedaço - Explorador');
+  assert.equal(manifest.title, 'QUEDAÇO - Explorador');
   assert.equal(manifest.manifest, 'https://github.com/yurisatelite/quedaco-explorador/releases/latest/download/module.json');
   assert.equal(manifest.download, `https://github.com/yurisatelite/quedaco-explorador/releases/download/v${manifest.version}/quedaco-explorador.zip`);
   for (const path of [...manifest.esmodules, ...manifest.styles, 'templates/explorer.hbs']) await access(new URL(`../${path}`, import.meta.url));

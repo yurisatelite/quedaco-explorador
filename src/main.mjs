@@ -2,7 +2,7 @@ import {ID, readConfig} from './core.mjs';
 import {createApi} from './api.mjs';
 import {createExplorerApp} from './app.mjs';
 import {createExplorerLayer} from './layer.mjs';
-import {createCampaignBridge} from './campaign.mjs';
+import {createCampaignBridge, familyApi} from './campaign.mjs';
 import {installSceneConfig, validateSceneUpdate} from './scene-config.mjs';
 let api, app, selectedId, bridge;
 const selectedIds = new Set();
@@ -39,8 +39,7 @@ Hooks.once('ready', async () => {
       selectedId = [...selectedIds].at(-1); app.sceneId = hexes[0].sceneId; refresh();
     },
     focus: async hex => {const scene = game.scenes.get(hex.sceneId); await scene.view(); await canvas.animatePan(scene.grid.getCenterPoint(hex));}});
-  game.modules.get(ID).api = api;
-  bridge = createCampaignBridge(game, api, {emit: (name, data) => Hooks.callAll(name, data), importModule: path => import(foundry.utils.getRoute(path))});
+  bridge = createCampaignBridge(game, api, {emit: (name, data) => Hooks.callAll(name, data)});
   Object.assign(api, bridge);
   if (game.user.isGM && (!game.users.activeGM || game.users.activeGM.id === game.user.id)) {
     for (const scene of game.scenes) if (readConfig(scene).enabled && (scene.flags?.[ID]?.schema ?? 1) < 2) {
@@ -48,7 +47,17 @@ Hooks.once('ready', async () => {
     }
   }
   await bridge.initialize();
-  Hooks.callAll(`${ID}:ready`, api);
+  const module = game.modules.get(ID);
+  const descriptor = Object.freeze({
+    ...api,
+    family: 'quedaco', contractVersion: 1, id: ID, title: module.title, version: module.version,
+    capabilities: Object.freeze({mapExplorer: true, areaDatabase: true, currentLocation: true, npcPlacement: true, areaNotes: true}),
+    open: sceneId => open(sceneId),
+    getStatus: () => ({ready: true, integrations: {quedaco: !!familyApi(game, 'quedaco', 'npcDatabase'), calendar: !!familyApi(game, 'quedaco-calendario', 'calendar')}})
+  });
+  module.api = descriptor;
+  Hooks.callAll(`${ID}:ready`, descriptor);
+  Hooks.callAll('quedaco:register', descriptor);
   refresh();
 });
 Hooks.on('updateScene', scene => {if (canvas.scene?.id === scene.id || app?.sceneId === scene.id) refresh();});
@@ -61,14 +70,14 @@ Hooks.on('preUpdateScene', (scene, changes) => {
   } catch (error) {ui.notifications.error(error.message); return false;}
 });
 for (const hook of ['updateActor', 'createActor', 'deleteActor', 'createJournalEntry', 'updateJournalEntry', 'deleteJournalEntry', 'createJournalEntryPage', 'deleteJournalEntryPage']) Hooks.on(hook, refresh);
-Hooks.on('updateJournalEntryPage', page => {refresh(); if (game.user.isGM && (!game.users.activeGM || game.users.activeGM.id === game.user.id)) report(() => bridge?.mirrorLocation(page));});
-Hooks.on('opath-calendar:ready', () => report(async () => {if (bridge) {await bridge.initialize(); refresh();}}));
+Hooks.on('updateJournalEntryPage', refresh);
+Hooks.on('quedaco:register', () => report(async () => {if (bridge) {await bridge.initialize(); refresh();}}));
 Hooks.on(`${ID}:catalogChanged`, refresh);
 Hooks.on('renderSceneDirectory', (directory, html) => {
   const root = html instanceof HTMLElement ? html : html?.[0] ?? directory.element;
   if (!root || root.querySelector('[data-qe-open]')) return;
   const button = document.createElement('button'); button.type = 'button'; button.dataset.qeOpen = '';
-  button.innerHTML = '<i class="fa-solid fa-compass"></i> Quedaço - Explorador';
+  button.innerHTML = '<i class="fa-solid fa-compass"></i> QUEDAÇO - Explorador';
   button.addEventListener('click', () => open());
   (root.querySelector('.header-actions') ?? root.querySelector('.directory-header') ?? root).prepend(button);
 });

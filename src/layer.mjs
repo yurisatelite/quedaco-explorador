@@ -6,7 +6,7 @@ export function createExplorerLayer({getApi, getSelection, getSelections = () =>
     get hookName() { return 'QuedacoExplorerLayer'; }
     static prepareSceneControls() {
       const tool = (name, title, icon, order, visible = true) => ({name, title, icon, order, visible});
-      return {name: ID, title: 'Quedaço - Explorador', icon: 'fa-solid fa-compass', layer: ID, order: 11, activeTool: 'select',
+      return {name: ID, title: 'QUEDAÇO - Explorador', icon: 'fa-solid fa-compass', layer: ID, order: 11, activeTool: 'select',
         onChange: (event, active) => {if (active) canvas[ID].activate();},
         tools: {
           select: tool('select', 'Selecionar áreas: clique, Ctrl/Shift ou arraste uma caixa', 'fa-solid fa-arrow-pointer', 0),

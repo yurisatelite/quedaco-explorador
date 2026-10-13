@@ -1,15 +1,25 @@
 import {ID} from './core.mjs';
 
-const CALENDAR = 'opath-calendar';
-const readable = (doc, game) => !!doc?.testUserPermission?.(game.user, 'OBSERVER');
+// Integração com a família QUEDAÇO (Protocolo v1). Este módulo NUNCA importa arquivo de outro
+// módulo nem grava em documento dele: tudo passa pela API pública do módulo dono do dado.
+const MAIN = 'quedaco', CALENDAR = 'quedaco-calendario';
 const label = hex => hex.name || hex.label;
 const dateLabel = date => `${date.day} · ${date.cycleName ?? `Ciclo ${date.cycle}`} · ${Math.abs(date.year)} ${date.year < 0 ? 'A.F.' : 'D.F.'}`;
 
-export function createCampaignBridge(game, explorer, {emit = () => {}, importModule = path => import(path), resolveDocument = uuid => fromUuid(uuid)} = {}) {
-  let catalog = {regions: [], places: [], tags: []}, notesProvider = null;
+/** API pública de um módulo da família, ou null (ausente, desativado, contrato diferente ou sem a capability). */
+export function familyApi(game, id, capability) {
+  try {
+    const module = game?.modules?.get?.(id), api = module?.api;
+    return module?.active && api?.family === 'quedaco' && api.contractVersion === 1 && api.id === id && api.capabilities?.[capability] === true ? api : null;
+  } catch {return null;}
+}
+
+export function createCampaignBridge(game, explorer, {emit = () => {}} = {}) {
+  let catalog = {regions: [], places: [], tags: []};
   const gm = () => {if (!game.user.isGM) throw Error('Somente a Mestra pode controlar a campanha.');};
-  const actors = () => Array.from(game.actors ?? []).filter(a => readable(a, game) && a.flags?.quedaco?.npc);
-  function calendar() {return game.modules?.get(CALENDAR)?.active ? game.modules.get(CALENDAR).api : null;}
+  const main = capability => familyApi(game, MAIN, capability);
+  const calendar = () => familyApi(game, CALENDAR, 'calendar');
+  const npcs = () => {const api = main('npcDatabase'); try {return api?.listNpcs?.() ?? [];} catch {return [];}};
   function getCurrentLocation() {
     const stored = game.settings.get(ID, 'currentLocation');
     if (!stored?.hexId) return null;
@@ -27,57 +37,27 @@ export function createCampaignBridge(game, explorer, {emit = () => {}, importMod
   function getNPCs(hexId) {
     const hex = explorer.getHex(hexId);
     if (!game.user.isGM && (!hex.active || hex.state !== 'explored')) return {present: [], regional: []};
-    const simple = actor => ({uuid: actor.uuid ?? `Actor.${actor.id}`, name: actor.name, role: actor.flags.quedaco.npc.role ?? 'extra', img: actor.img});
+    const simple = n => ({uuid: n.uuid, name: n.name, role: n.role ?? 'extra', img: n.img}), all = npcs();
     return {
-      present: actors().filter(a => a.flags.quedaco.npc.explorerLocation?.hexId === hex.id).map(simple),
-      regional: game.user.isGM ? actors().filter(a => !a.flags.quedaco.npc.explorerLocation?.hexId && hex.regionId && a.flags.quedaco.npc.regionId === hex.regionId).map(simple) : []
+      present: all.filter(n => n.explorerLocation?.hexId === hex.id).map(simple),
+      regional: game.user.isGM ? all.filter(n => !n.explorerLocation?.hexId && hex.regionId && n.regionId === hex.regionId).map(simple) : []
     };
-  }
-  async function mirrorLocation(page) {
-    if (!game.user.isGM) return;
-    const location = page?.flags?.[ID]?.location;
-    if (!location || !page.flags?.[CALENDAR]?.record) return;
-    for (const journal of game.journal ?? []) if (journal.flags?.[CALENDAR]?.sourceUuid === page.uuid
-      && JSON.stringify(journal.flags?.[ID]?.location) !== JSON.stringify(location)) await journal.setFlag(ID, 'location', location);
   }
   function listNotes(hexId) {
     explorer.getHex(hexId);
-    const result = [], sources = new Set();
-    const append = (document, sourceUuid, record, location) => {
-      if (!location || location.hexId !== hexId || !record || record.archived || sources.has(sourceUuid)) return;
-      sources.add(sourceUuid);
-      const owner = record.authorId ?? location.authorId;
-      result.push({uuid: document.uuid, title: document.name, author: game.users?.get(owner)?.name ?? 'Diário de campanha', dateLabel: location.dateLabel ?? '', absoluteDay: record.absoluteDay, timelineId: record.timelineId, locationId: hexId, visibility: record.visibility});
-    };
-    for (const journal of game.journal ?? []) if (readable(journal, game)) for (const page of journal.pages ?? []) {
-      if (readable(page, game)) append(page, page.uuid, page.flags?.[CALENDAR]?.record, page.flags?.[ID]?.location);
-    }
-    for (const journal of game.journal ?? []) if (readable(journal, game)) {
-      append(journal, journal.flags?.[CALENDAR]?.sourceUuid ?? journal.uuid, journal.flags?.[CALENDAR]?.record, journal.flags?.[ID]?.location);
-    }
-    return result.sort((a, b) => b.absoluteDay - a.absoluteDay);
+    const provider = calendar();
+    if (typeof provider?.listPlaceNotes !== 'function') return [];
+    let rows; try {rows = provider.listPlaceNotes(hexId);} catch {return [];}
+    return (Array.isArray(rows) ? rows : []).filter(r => r && typeof r.uuid === 'string')
+      .map(r => ({uuid: r.uuid, title: String(r.title ?? ''), author: game.users?.get(r.authorId)?.name ?? 'Diário de campanha', dateLabel: String(r.dateLabel ?? ''), absoluteDay: r.absoluteDay, timelineId: r.timelineId, locationId: hexId, visibility: r.visibility}))
+      .sort((a, b) => b.absoluteDay - a.absoluteDay);
   }
   const api = {
-    registerCatalog, getCatalog, getNPCs, listNotes, getCurrentLocation, mirrorLocation,
-    registerNotesProvider(provider) {notesProvider = provider;},
+    registerCatalog, getCatalog, getNPCs, listNotes, getCurrentLocation,
     async initialize() {
-      const main = game.modules?.get('quedaco');
-      if (main?.active) {
-        if (main.api?.getExplorerCatalog) registerCatalog(await main.api.getExplorerCatalog());
-        else {
-          const sources = await Promise.allSettled([importModule('/modules/quedaco/src/book-world.mjs'), importModule('/modules/quedaco/src/npcs.mjs')]);
-          const world = sources[0].status === 'fulfilled' ? sources[0].value : {};
-          const npc = sources[1].status === 'fulfilled' ? sources[1].value : {};
-          registerCatalog({regions: world.REGIONS, places: world.PLACES, tags: Object.entries(npc.NPC_ROLES ?? {}).map(([id, name]) => ({id: `role:${id}`, label: name}))});
-          if (sources.some(s => s.status === 'rejected')) console.warn(`${ID}: parte do catálogo do Quedaço não está disponível; os dados salvos foram preservados.`);
-        }
-      }
-      if (calendar()) {
-        if (calendar().saveLocationRecord) notesProvider = {save: input => calendar().saveLocationRecord(input)};
-        else {
-          try {const {createRecords} = await importModule('/modules/opath-calendar/scripts/records.mjs'); notesProvider = createRecords(game);}
-          catch {console.warn(`${ID}: calendário sem API de anotações compatível.`);}
-        }
+      const provider = main('explorerCatalog');
+      if (typeof provider?.getExplorerCatalog === 'function') {
+        try {registerCatalog(await provider.getExplorerCatalog());} catch {console.warn(`${ID}: catálogo do QUEDAÇO indisponível; os dados salvos foram preservados.`);}
       }
     },
     async createTag(name) {
@@ -92,20 +72,19 @@ export function createCampaignBridge(game, explorer, {emit = () => {}, importMod
     async assignNPC(actorUuid, hexId) {
       gm(); const hex = explorer.getHex(hexId);
       if (!hex.active) throw Error('Reative a área antes de atribuir NPCs.');
-      const match = /^Actor\.([\w-]+)$/.exec(actorUuid), actor = match && game.actors?.get(match[1]);
-      if (!actor?.flags?.quedaco?.npc) throw Error('Escolha um NPC cadastrado no Quedaço.');
-      const update = {'flags.quedaco.npc.explorerLocation': {hexId: hex.id, sceneId: hex.sceneId}};
-      if (hex.regionId) update['flags.quedaco.npc.regionId'] = hex.regionId;
-      if (hex.placeId) update['flags.quedaco.npc.placeId'] = hex.placeId;
-      await actor.update(update); emit(`${ID}:npcLocationChanged`, {actorUuid, hexId: hex.id}); return getNPCs(hex.id);
+      const provider = main('npcLocation');
+      if (typeof provider?.setNpcExplorerLocation !== 'function') throw Error('Ative uma versão do QUEDAÇO que permita atribuir NPCs a áreas.');
+      await provider.setNpcExplorerLocation(actorUuid, {hexId: hex.id, sceneId: hex.sceneId, regionId: hex.regionId, placeId: hex.placeId});
+      emit(`${ID}:npcLocationChanged`, {actorUuid, hexId: hex.id}); return getNPCs(hex.id);
     },
     async removeNPC(actorUuid, hexId) {
       gm(); explorer.getHex(hexId);
-      const match = /^Actor\.([\w-]+)$/.exec(actorUuid), actor = match && game.actors?.get(match[1]);
-      if (actor?.flags?.quedaco?.npc?.explorerLocation?.hexId !== hexId) throw Error('Este NPC não está atribuído a esta área.');
-      await actor.update({'flags.quedaco.npc.explorerLocation': null}); emit(`${ID}:npcLocationChanged`, {actorUuid, hexId: null});
+      const provider = main('npcLocation');
+      if (typeof provider?.setNpcExplorerLocation !== 'function') throw Error('Ative uma versão do QUEDAÇO que permita atribuir NPCs a áreas.');
+      if (!npcs().some(n => n.uuid === actorUuid && n.explorerLocation?.hexId === hexId)) throw Error('Este NPC não está atribuído a esta área.');
+      await provider.setNpcExplorerLocation(actorUuid, null); emit(`${ID}:npcLocationChanged`, {actorUuid, hexId: null});
     },
-    getNPCCandidates: () => game.user.isGM ? actors().map(a => ({uuid: a.uuid ?? `Actor.${a.id}`, name: a.name})) : [],
+    getNPCCandidates: () => game.user.isGM ? npcs().map(n => ({uuid: n.uuid, name: n.name})) : [],
     async setCurrentLocation(hexId) {
       gm(); const hex = explorer.getHex(hexId);
       if (!hex.active) throw Error('A localização do grupo precisa ser uma área ativa.');
@@ -114,11 +93,12 @@ export function createCampaignBridge(game, explorer, {emit = () => {}, importMod
     },
     getCampaignContext() {
       const clock = calendar(), timelines = clock?.getTimelines?.();
-      return {location: getCurrentLocation(), date: clock?.getCurrentDate?.() ?? null, timelineId: timelines?.activeId ?? 'main', canCreateNote: !!(clock && notesProvider)};
+      return {location: getCurrentLocation(), date: clock?.getCurrentDate?.() ?? null, timelineId: timelines?.activeId ?? 'main', canCreateNote: !!(clock && typeof clock.saveLocationRecord === 'function')};
     },
+    /** A nota é criada e guardada pelo Calendário (dono dos diários, que valida a permissão). Aqui só se informa o local. */
     async createNote({title, description, hexId, absoluteDay} = {}) {
       const clock = calendar();
-      if (!clock || !notesProvider) throw Error('Ative uma versão compatível do Calendário de Opath para criar notas datadas no diário pessoal.');
+      if (!clock || typeof clock.saveLocationRecord !== 'function') throw Error('Ative uma versão compatível do QUEDAÇO - Calendário para criar notas datadas no diário pessoal.');
       const current = getCurrentLocation();
       const hex = game.user.isGM && hexId ? explorer.getHex(hexId) : current;
       if (!hex?.active) throw Error('A Mestra precisa definir a localização do grupo.');
@@ -127,18 +107,19 @@ export function createCampaignBridge(game, explorer, {emit = () => {}, importMod
       const day = game.user.isGM && absoluteDay !== undefined ? Number(absoluteDay) : date.absoluteDay;
       if (!Number.isSafeInteger(day)) throw Error('Data inválida.');
       const timelineId = clock.getTimelines?.()?.activeId ?? 'main';
-      const uuid = await notesProvider.save({title: String(title ?? '').trim(), description: String(description ?? '').trim(),
-        location: [label(hex), hex.region].filter(Boolean).join(' · ').slice(0,200), weather: '', image: '', links: [], visibility: 'public', sharedWith: [], repeat: 'once', absoluteDay: day, timelineId, calendarMode: date.mode ?? 'lunar'});
-      const document = await resolveDocument(typeof uuid === 'string' ? uuid : uuid.uuid);
-      if (!document?.isOwner && !game.user.isGM) throw Error('Nota salva no calendário, mas sem permissão para vincular a localidade.');
+      const place = {ref: hex.id, name: label(hex), regionId: hex.regionId ?? '', source: ID};
+      const uuid = await clock.saveLocationRecord({title: String(title ?? '').trim(), description: String(description ?? '').trim(),
+        location: [label(hex), hex.region].filter(Boolean).join(' · ').slice(0,200), visibility: 'public', absoluteDay: day, timelineId, calendarMode: date.mode ?? 'lunar', place});
       const location = {hexId: hex.id, sceneId: hex.sceneId, regionId: hex.regionId, name: label(hex), authorId: game.user.id,
         absoluteDay: day, timelineId, dateLabel: day === date.absoluteDay ? dateLabel(date) : `Dia ${day} · ${timelineId}`};
-      await document.setFlag(ID, 'location', location);
-      await mirrorLocation(document);
-      emit(`${ID}:noteCreated`, {uuid: document.uuid, location});
-      return {uuid: document.uuid, location};
+      emit(`${ID}:noteCreated`, {uuid, location});
+      return {uuid, location};
     },
-    async openNote(uuid) {const doc = await resolveDocument(uuid); if (!readable(doc, game)) throw Error('Anotação indisponível.'); return doc.documentName === 'JournalEntryPage' ? doc.parent.sheet.render(true, {pageId: doc.id}) : doc.sheet.render(true);}
+    async openNote(uuid) {
+      const clock = calendar();
+      if (typeof clock?.openRecord !== 'function') throw Error('Anotação indisponível.');
+      return clock.openRecord(uuid);
+    }
   };
   return api;
 }

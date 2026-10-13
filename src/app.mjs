@@ -3,7 +3,7 @@ import {ID, STATES, TERRAINS, readConfig, enumerateHexes, summary} from './core.
 export function createExplorerApp({getApi, getSelection, getSelections = () => [getSelection()].filter(Boolean), clearSelection = () => {}, report}) {
   const {ApplicationV2, HandlebarsApplicationMixin} = foundry.applications.api;
   return class ExplorerApp extends HandlebarsApplicationMixin(ApplicationV2) {
-    static DEFAULT_OPTIONS = {id: `${ID}-window`, classes: ['qe-app'], window: {title: 'Quedaço - Explorador', resizable: true}, position: {width: 1200, height: 800}};
+    static DEFAULT_OPTIONS = {id: `${ID}-window`, classes: ['qe-app'], window: {title: 'QUEDAÇO - Explorador', resizable: true}, position: {width: 1200, height: 800}};
     static PARTS = {body: {template: `modules/${ID}/templates/explorer.hbs`}};
     tab = 'exploration'; sceneId = null; search = ''; filter = ''; showInactive = false; unassigned = false;
     async _prepareContext() {

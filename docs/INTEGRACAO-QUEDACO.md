@@ -1,5 +1,7 @@
 # Instrução para atualizar o Quedaço principal
 
+> Atualização de requisitos em 13/10/2026: o [Protocolo de Integração Quedaço](PROTOCOLO-INTEGRACAO-QUEDACO.md) prevalece sobre as recomendações anteriores abaixo. Imports diretos de outros módulos e gravações diretas de seus documentos devem ser substituídos por APIs públicas opcionais. Este documento descreve a integração 0.2.0; o trabalho necessário para adequá-la está em [PROXIMA-ATUALIZACAO.md](PROXIMA-ATUALIZACAO.md).
+
 Implemente o Quedaço como painel central da campanha usando a API do **quedaco-explorador 0.2.0**. Preserve as alterações locais existentes e os módulos independentes. Esta entrega modificou o Explorador; ainda não modificou as telas do Quedaço, calendário ou Jornal da Queda.
 
 ## Responsabilidades
