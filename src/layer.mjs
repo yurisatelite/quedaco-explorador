@@ -1,6 +1,6 @@
 import {ID, STATES, enumerateHexes, readConfig, readHex, assertGeometry, hexId} from './core.mjs';
 
-export function createExplorerLayer({getApi, getSelection, open, report}) {
+export function createExplorerLayer({getApi, getSelection, getSelections = () => [getSelection()], open, report}) {
   return class ExplorerLayer extends foundry.canvas.layers.InteractionLayer {
     static get layerOptions() { return {...super.layerOptions, name: ID, zIndex: 950}; }
     get hookName() { return 'QuedacoExplorerLayer'; }
@@ -9,7 +9,7 @@ export function createExplorerLayer({getApi, getSelection, open, report}) {
       return {name: ID, title: 'Quedaço - Explorador', icon: 'fa-solid fa-compass', layer: ID, order: 11, activeTool: 'select',
         onChange: (event, active) => {if (active) canvas[ID].activate();},
         tools: {
-          select: tool('select', 'Selecionar hex', 'fa-solid fa-arrow-pointer', 0),
+          select: tool('select', 'Selecionar áreas: clique, Ctrl/Shift ou arraste uma caixa', 'fa-solid fa-arrow-pointer', 0),
           explored: tool('explored', 'Explorar: clique ou arraste', 'fa-solid fa-eye', 1, game.user.isGM),
           partial: tool('partial', 'Revelar parcialmente: clique ou arraste', 'fa-solid fa-circle-half-stroke', 2, game.user.isGM),
           hidden: tool('hidden', 'Ocultar: clique ou arraste', 'fa-solid fa-eye-slash', 3, game.user.isGM),
@@ -35,14 +35,15 @@ export function createExplorerLayer({getApi, getSelection, open, report}) {
         const graphics = this.display.addChild(new PIXI.Graphics());
         const color = parseInt(config.color.slice(1), 16);
         for (const cell of cells) {
-          const hex = readHex(scene, cell, game.user), selected = getSelection() === cell.id;
+          const hex = readHex(scene, cell, game.user), selected = getSelections().includes(cell.id);
+          if (!hex.active) continue;
           const alpha = hex.state === 'explored' ? 0 : isGM ? config.gmOpacity : hex.state === 'partial' ? 0.6 : 1;
           const outline = selected ? 0x67e8f9 : hex.state === 'explored' ? 0x65d6a5 : hex.state === 'partial' ? 0xf2c879 : 0x64748b;
           graphics.lineStyle(selected ? 3 : 1, outline, selected ? 1 : 0.35);
           graphics.beginFill(color, alpha);
           graphics.drawPolygon(cell.vertices.flatMap(p => [p.x, p.y])); graphics.endFill();
-          if (config.showLabels && (isGM || hex.state === 'explored')) {
-            const label = this.display.addChild(new PIXI.Text(cell.label, {fontFamily: 'sans-serif', fontSize: Math.max(10, Math.min(20, scene.grid.size / 7)), fill: '#ffffff', stroke: '#111827', strokeThickness: 3}));
+          if (config.labelMode !== 'none' && (config.labelMode === 'all' || selected) && (isGM || hex.state === 'explored')) {
+            const label = this.display.addChild(new PIXI.Text(config.labelMode === 'all' || getSelections().length > 1 ? hex.shortCode : (hex.name || hex.label).slice(0,60), {fontFamily: 'sans-serif', fontSize: Math.max(10, Math.min(20, scene.grid.size / 7)), fill: '#ffffff', stroke: '#111827', strokeThickness: 3, wordWrap: true, wordWrapWidth: scene.grid.size * 0.85, align: 'center'}));
             label.anchor.set(0.5); label.position.set(cell.center.x, cell.center.y); label.eventMode = 'none';
           }
         }
@@ -69,22 +70,30 @@ export function createExplorerLayer({getApi, getSelection, open, report}) {
     _onClickLeft(event) {
       report(async () => {
         const id = this.hexAt(event.getLocalPosition(canvas.stage));
-        getApi().selectHex(id); open();
+        getApi().selectHex(id, {additive: game.user.isGM && !!(event.shiftKey || event.ctrlKey || event.metaKey || event.nativeEvent?.shiftKey || event.nativeEvent?.ctrlKey)}); open();
         const tool = ui.controls.tool.name;
         if (Object.hasOwn(STATES, tool) && game.user.isGM) await getApi().setState(id, tool);
       });
     }
     _onClickLeft2(event) { this._onClickLeft(event); }
-    _canDragLeftStart() { return game.user.isGM && Object.hasOwn(STATES, ui.controls.tool.name); }
+    _canDragLeftStart() { return game.user.isGM && (ui.controls.tool.name === 'select' || Object.hasOwn(STATES, ui.controls.tool.name)); }
     _onDragLeftStart(event) {
       this.paint = new Set(); this.paintState = ui.controls.tool.name;
-      this.addPaint(event.interactionData.origin);
+      this.dragOrigin = event.interactionData.origin;
+      this.dragAdditive = !!(event.shiftKey || event.ctrlKey || event.nativeEvent?.shiftKey || event.nativeEvent?.ctrlKey);
+      if (this.paintState !== 'select') this.addPaint(event.interactionData.origin);
     }
     addPaint(point) {
-      try {this.paint.add(this.hexAt(point));} catch { /* Ignore padding outside the map. */ }
+      try {const id = this.hexAt(point); if (getApi().getHex(id).active) this.paint.add(id);} catch { /* Ignore padding or disabled borders. */ }
     }
-    _onDragLeftMove(event) {this.addPaint(event.interactionData.destination);}
+    _onDragLeftMove(event) {if (this.paintState !== 'select') this.addPaint(event.interactionData.destination);}
     _onDragLeftDrop(event) {
+      if (this.paintState === 'select') {
+        const start = this.dragOrigin, end = event.interactionData.destination;
+        const cells = enumerateHexes(canvas.scene).filter(c => c.active && c.center.x >= Math.min(start.x,end.x) && c.center.x <= Math.max(start.x,end.x) && c.center.y >= Math.min(start.y,end.y) && c.center.y <= Math.max(start.y,end.y));
+        getApi().selectHexes(cells.map(c => c.id),{additive:this.dragAdditive});
+        this.paint.clear(); open(); return;
+      }
       this.addPaint(event.interactionData.destination);
       const ids = [...this.paint], state = this.paintState; this.paint.clear();
       report(() => getApi().setStates(ids, state));

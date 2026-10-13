@@ -46,13 +46,25 @@ test('layer paints coverage and labels, selects on click, and exposes V13 contro
   const f = await setup(), controls = f.Layer.prepareSceneControls();
   assert.equal(controls.layer, ID); assert.equal(controls.activeTool, 'select');
   assert.equal(controls.tools.panel.button, true);
-  assert.equal(f.layer.display.children.filter(c => c instanceof Text).length, 72);
+  assert.equal(f.layer.display.children.filter(c => c instanceof Text).length, 0);
   f.layer._onClickLeft({getLocalPosition: () => f.scene.grid.getCenterPoint({i: 1, j: 1})});
   await Promise.all(f.jobs); assert.deepEqual(f.errors, []);
   assert.equal(f.api.getHex('sceneA:1:1').state, 'hidden');
+  f.layer.refresh();
+  assert.equal(f.layer.display.children.filter(c => c instanceof Text).length, 1);
   ui.controls.tool.name = 'explored';
   f.layer._onClickLeft({getLocalPosition: () => f.scene.grid.getCenterPoint({i: 1, j: 1})});
   await Promise.all(f.jobs); assert.equal(f.api.getHex('sceneA:1:1').state, 'explored');
+});
+
+test('disabled border cells have no coverage and do not participate in painting', async () => {
+  const f = await setup();
+  await f.api.setActive(['sceneA:0:0','sceneA:0:1'],false); f.layer.refresh();
+  const graphics = f.layer.display.children[0];
+  assert.equal(graphics.commands.filter(c => c[0] === 'polygon').length,70);
+  ui.controls.tool.name = 'partial';
+  f.layer._onDragLeftStart({interactionData:{origin:f.scene.grid.getCenterPoint({i:0,j:0})}});
+  assert.equal(f.layer.paint.size,0);
 });
 test('drag records one batch and cancellation never persists it', async () => {
   const f = await setup(); ui.controls.tool.name = 'partial';

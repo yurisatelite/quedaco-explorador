@@ -1,8 +1,8 @@
 export const ID = 'quedaco-explorador';
-export const SCHEMA = 1;
+export const SCHEMA = 2;
 export const MAX_HEXES = 5000;
 export const STATES = Object.freeze({hidden: 'Oculto', partial: 'Parcial', explored: 'Explorado'});
-export const DEFAULT_CONFIG = Object.freeze({enabled: false, defaultState: 'hidden', showLabels: true, gmOpacity: 0.22, color: '#111827'});
+export const DEFAULT_CONFIG = Object.freeze({enabled: false, defaultState: 'hidden', showLabels: true, labelMode: 'selected', gmOpacity: 0.22, color: '#111827'});
 export const TERRAINS = ['Não definido', 'Planície', 'Floresta', 'Montanha', 'Deserto', 'Pântano', 'Água', 'Urbano'];
 const clone = value => structuredClone(value);
 const text = (value, max = 200) => String(value ?? '').trim().slice(0, max);
@@ -22,13 +22,16 @@ export function parseHexId(id) {
   offsetKey(offset);
   return {sceneId: match[1], ...offset};
 }
-export function labelFor({i, j}) { return `H ${i} · ${j}`; }
+export function shortCode(number) { return number ? `A${String(number).padStart(3, '0')}` : '—'; }
+export function labelFor({number}) { return number ? `Área ${String(number).padStart(3, '0')}` : 'Área desativada'; }
 export function validateConfig(input = {}) {
   const config = {...DEFAULT_CONFIG, ...input};
   if (!Object.hasOwn(STATES, config.defaultState)) throw Error('Estado padrão inválido.');
   if (!/^#[0-9a-f]{6}$/i.test(config.color)) throw Error('Cor de cobertura inválida.');
   if (!Number.isFinite(config.gmOpacity) || config.gmOpacity < 0 || config.gmOpacity > 1) throw Error('Opacidade inválida.');
-  return {enabled: config.enabled === true, defaultState: config.defaultState, showLabels: config.showLabels === true, gmOpacity: config.gmOpacity, color: config.color};
+  const labelMode = input.labelMode ?? (input.showLabels === false ? 'none' : DEFAULT_CONFIG.labelMode);
+  if (!['none', 'selected', 'all'].includes(labelMode)) throw Error('Exibição dos nomes inválida.');
+  return {enabled: config.enabled === true, defaultState: config.defaultState, showLabels: labelMode !== 'none', labelMode, gmOpacity: config.gmOpacity, color: config.color};
 }
 export function readConfig(scene) { return validateConfig(scene.flags?.[ID]?.config); }
 export function validateHex(input, offset, config = DEFAULT_CONFIG) {
@@ -41,7 +44,9 @@ export function validateHex(input, offset, config = DEFAULT_CONFIG) {
     if (uuid && !/^(?:Scene|JournalEntry)\.[\w.-]+$/.test(uuid)) throw Error('Vínculo inválido. Use o UUID de uma cena ou diário do mundo.');
     return uuid;
   };
-  return {i: offset.i, j: offset.j, state, name: text(input.name), terrain: text(input.terrain, 80), region: text(input.region),
+  const number = input.number ?? null;
+  if (number !== null && (!Number.isSafeInteger(number) || number < 1 || number > 999999)) throw Error('Número da área inválido.');
+  return {i: offset.i, j: offset.j, active: input.active !== false, number, state, name: text(input.name), terrain: text(input.terrain, 80), region: text(input.region), regionId: text(input.regionId, 100), placeId: text(input.placeId, 100),
     description: text(input.description, 12000), tags: [...new Set(tags.map(t => text(t, 60)).filter(Boolean))].slice(0, 30),
     sceneUuid: link(input.sceneUuid), journalUuid: link(input.journalUuid)};
 }
@@ -61,7 +66,9 @@ export function enumerateHexes(scene) {
   for (let i = i0; i < i1; i++) for (let j = j0; j < j1; j++) {
     const offset = {i, j}, center = grid.getCenterPoint(offset);
     if (center.x < rect.x || center.y < rect.y || center.x >= rect.x + rect.width || center.y >= rect.y + rect.height) continue;
-    result.push({id: hexId(scene.id, offset), key: offsetKey(offset), label: labelFor(offset), ...offset,
+    const record = scene.flags?.[ID]?.hexes?.[offsetKey(offset)];
+    const number = record?.number ?? result.length + 1;
+    result.push({id: hexId(scene.id, offset), key: offsetKey(offset), label: labelFor({number}), shortCode: shortCode(number), number, active: record?.active !== false, ...offset,
       center, vertices: grid.getVertices(offset)});
   }
   return result;
@@ -73,13 +80,14 @@ export function assertGeometry(scene) {
 export function readHex(scene, offset, {isGM = false} = {}) {
   const config = readConfig(scene);
   const record = validateHex(scene.flags?.[ID]?.hexes?.[offsetKey(offset)] ?? {}, offset, config);
-  const base = {id: hexId(scene.id, offset), sceneId: scene.id, label: labelFor(offset)};
-  if (!isGM && record.state !== 'explored') return {...base, i: offset.i, j: offset.j, state: record.state,
-    name: '', terrain: '', region: '', description: '', tags: [], sceneUuid: '', journalUuid: ''};
-  return {...base, ...clone(record)};
+  const number = record.number ?? offset.number ?? enumerateHexes(scene).find(h => h.key === offsetKey(offset))?.number ?? null;
+  const base = {id: hexId(scene.id, offset), sceneId: scene.id, label: labelFor({number}), shortCode: shortCode(number)};
+  if (!isGM && (record.state !== 'explored' || !record.active)) return {...base, i: offset.i, j: offset.j, number, active: record.active, state: record.state,
+    name: '', terrain: '', region: '', regionId: '', placeId: '', description: '', tags: [], sceneUuid: '', journalUuid: ''};
+  return {...base, ...clone(record), number};
 }
 export function summary(hexes) {
-  return hexes.reduce((total, hex) => {total[hex.state]++; total.total++; return total;}, {total: 0, hidden: 0, partial: 0, explored: 0});
+  return hexes.filter(h => h.active !== false).reduce((total, hex) => {total[hex.state]++; total.total++; return total;}, {total: 0, hidden: 0, partial: 0, explored: 0});
 }
 /** Reads saved user data only. No dependency on World Explorer's executable code. */
 export function legacyRecords(gridData) {

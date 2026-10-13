@@ -1,6 +1,8 @@
 import {ID, hexId} from '../src/core.mjs';
 import {createApi} from '../src/api.mjs';
 import {createExplorerApp} from '../src/app.mjs';
+import {createCampaignBridge} from '../src/campaign.mjs';
+export class Collection extends Map { [Symbol.iterator]() {return this.values();} }
 
 export function mockScene(id = 'sceneA') {
   const radius = 38, sizeX = Math.sqrt(3) * radius;
@@ -25,8 +27,10 @@ export function mockScene(id = 'sceneA') {
 }
 export function mockGame() {
   const scene = mockScene();
-  class Collection extends Map { [Symbol.iterator]() {return this.values();} }
-  return {user: {isGM: true}, scenes: new Collection([[scene.id, scene]])};
+  const values = new Map();
+  const user = {id: 'gm', name: 'Mestra', isGM: true};
+  return {user, scenes: new Collection([[scene.id, scene]]), actors: new Collection(), journal: new Collection(), users: new Collection([['gm', user]]), modules: new Collection(),
+    settings: {get: (module,key) => values.get(`${module}.${key}`) ?? (key === 'tagCatalog' ? [] : {}), set: async (module,key,value) => {values.set(`${module}.${key}`,structuredClone(value)); return value;}}};
 }
 export async function uiFixture() {
   const game = mockGame(), scene = game.scenes.get('sceneA'), events = [], errors = [];
@@ -35,11 +39,28 @@ export async function uiFixture() {
   globalThis.ui = {notifications: {info() {}, error(message) {errors.push(message);}}};
   class Application {render() {this.rendered = true; return this;} _onRender() {}}
   globalThis.foundry = {applications: {api: {ApplicationV2: Application, HandlebarsApplicationMixin: Base => Base}}};
-  let selected;
-  const api = createApi(game, {select: h => {selected = h.id;}, emit: (name, data) => events.push({name, data})});
+  let selected; const selections = new Set();
+  const api = createApi(game, {select: (h,{additive = false,toggle = true} = {}) => {
+    if (!additive) selections.clear();
+    if (additive && toggle && selections.has(h.id)) selections.delete(h.id); else selections.add(h.id);
+    selected = [...selections].at(-1);
+  }, emit: (name, data) => events.push({name, data})});
+  const documents = new Map();
+  const bridge = createCampaignBridge(game,api,{resolveDocument:uuid => documents.get(uuid)});
+  Object.assign(api,bridge);
+  bridge.registerCatalog({regions:[{id:'forah',name:'Protetorado de Forah'},{id:'mirmir',name:'Deserto de Mirmir'}],places:[],tags:[{id:'role:merchant',label:'Mercador'},{id:'rota',label:'Rota'}]});
+  game.modules.set('opath-calendar',{active:true,api:{getCurrentDate:() => ({day:4,cycleName:'Primeiro Ciclo',year:349,absoluteDay:83763,mode:'lunar'}),getTimelines:() => ({activeId:'main'})}});
+  const book = {id:'book',uuid:'JournalEntry.book',name:'Diário da Mestra',pages:[],flags:{},testUserPermission:() => true,sheet:{render() {}}};
+  game.journal.set(book.id,book);
+  bridge.registerNotesProvider({save:async input => {
+    const id = `note${book.pages.length+1}`;
+    const page = {id,uuid:`JournalEntry.book.JournalEntryPage.${id}`,name:input.title,documentName:'JournalEntryPage',parent:book,isOwner:true,flags:{'opath-calendar':{record:input}},testUserPermission:() => true,
+      async setFlag(module,key,value) {this.flags[module] ??= {}; this.flags[module][key] = structuredClone(value);}};
+    book.pages.push(page); documents.set(page.uuid,page); return page.uuid;
+  }});
   await api.configureScene(scene.id, {enabled: true});
   const records = [
-    {i: 2, j: 2, state: 'explored', name: 'Travessia da Aurora', terrain: 'Floresta', region: 'Fronteira do Norte', tags: ['rota', 'encontro'], description: 'Uma antiga estrada corta a floresta. As marcas de uma caravana seguem até a ponte.', journalUuid: 'JournalEntry.diaryA'},
+    {i: 2, j: 2, state: 'explored', name: 'Travessia da Aurora', terrain: 'Floresta', region: 'Protetorado de Forah', regionId:'forah', tags: ['rota', 'encontro'], description: 'Uma antiga estrada corta a floresta. As marcas de uma caravana seguem até a ponte.', journalUuid: 'JournalEntry.diaryA'},
     {i: 2, j: 3, state: 'explored', name: 'Ponte dos Ecos', terrain: 'Água', region: 'Fronteira do Norte'},
     {i: 3, j: 2, state: 'partial', name: 'Nome ainda não revelado'},
     {i: 3, j: 3, state: 'explored', name: 'Acampamento abandonado'},
@@ -48,7 +69,7 @@ export async function uiFixture() {
   for (const record of records) await api.updateHex(hexId(scene.id, record), record);
   api.selectHex(hexId(scene.id, records[0]));
   const report = action => Promise.resolve().then(action).catch(e => errors.push(e.message));
-  const App = createExplorerApp({getApi: () => api, getSelection: () => selected, report});
+  const App = createExplorerApp({getApi: () => api, getSelection: () => selected, getSelections:() => [...selections], clearSelection:() => {selections.clear(); selected = null;}, report});
   const app = new App(); app.sceneId = scene.id;
-  return {game, scene, api, app, events, errors};
+  return {game, scene, api, app, events, errors, documents};
 }

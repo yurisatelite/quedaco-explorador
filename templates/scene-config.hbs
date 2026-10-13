@@ -1,0 +1,13 @@
+<section class="tab qe-scene-config" data-tab="quedaco-explorador" data-group="sheet" data-qe-scene-config>
+  <p>Configure a exploração aqui e salve pelo botão da cena. Para editar áreas, regiões e NPCs, abra o painel.</p>
+  <div class="form-group"><label>Ativar exploração nesta cena</label><div class="form-fields"><input type="checkbox" name="flags.quedaco-explorador.config.enabled" {{#if config.enabled}}checked{{/if}}></div></div>
+  <fieldset><legend>Mapa e identificação</legend>
+    <div class="form-group"><label>Nomes no mapa</label><div class="form-fields"><select name="flags.quedaco-explorador.config.labelMode">{{#each labels}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></div></div>
+    <p class="hint">O nome ou número aparece só na área selecionada por padrão. Códigos técnicos ficam internos.</p>
+    <div class="form-group"><label>Estado inicial</label><div class="form-fields"><select name="flags.quedaco-explorador.config.defaultState">{{#each states}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></div></div>
+    <div class="form-group"><label>Cor da cobertura</label><div class="form-fields"><input type="color" name="flags.quedaco-explorador.config.color" value="{{config.color}}"></div></div>
+    <div class="form-group"><label>Opacidade para a Mestra</label><div class="form-fields"><input type="number" name="flags.quedaco-explorador.config.gmOpacity" data-dtype="Number" value="{{config.gmOpacity}}" min="0" max="1" step="0.01"></div></div>
+  </fieldset>
+  <p class="hint">Bordas podem ser desativadas pelo painel sem mudar a grade. Renumerar muda apenas a identificação visível; conteúdo e vínculos continuam no mesmo lugar.</p>
+  <button type="button" data-qe-open-scene><i class="fa-solid fa-compass"></i> Editar áreas, regiões e NPCs</button>
+</section>

@@ -19,7 +19,7 @@ test('all sidebar tabs and inspector render, escape user content and handle real
   globalThis.MouseEvent = dom.window.MouseEvent;
   f.app.element = dom.window.document.body;
   f.app._onRender(context, {});
-  assert.equal(f.app.element.querySelectorAll('[data-tab]').length, 4);
+  assert.equal(f.app.element.querySelectorAll('[data-tab]').length, 5);
   assert.equal(f.app.element.querySelectorAll('g[data-hex]').length, 72);
   assert.ok(f.app.element.querySelector('[data-hex-form]'));
   f.app.element.querySelector('[data-tab="hexes"]').click(); assert.equal(f.app.tab, 'hexes');
@@ -27,11 +27,26 @@ test('all sidebar tabs and inspector render, escape user content and handle real
   f.app.element.querySelector('[data-hex="sceneA:1:1"]').dispatchEvent(new dom.window.KeyboardEvent('keydown', {key: 'Enter'}));
   await new Promise(resolve => setImmediate(resolve));
   assert.equal((await f.app._prepareContext()).selected.id, 'sceneA:1:1');
-  for (const tab of ['hexes', 'settings', 'integration']) {
+  for (const tab of ['hexes', 'settings', 'integration', 'tags']) {
     f.app.tab = tab; html = template(await f.app._prepareContext());
     assert.ok(html.includes('qe-sidebar')); assert.ok(!html.includes('undefined'));
   }
   assert.deepEqual(f.errors, []);
+});
+
+test('map defaults to one friendly label and multiple selection opens batch controls', async () => {
+  const f = await uiFixture();
+  let html = template(await f.app._prepareContext());
+  let doc = new JSDOM(html).window.document;
+  assert.equal(doc.querySelectorAll('g[data-hex] text').length, 1);
+  assert.equal(doc.querySelector('g[data-hex] text').textContent.trim(), 'Travessia da Aurora');
+  assert.equal(doc.querySelector('.qe-inspector code'), null);
+  f.api.selectHex('sceneA:2:3', {additive:true});
+  html = template(await f.app._prepareContext()); doc = new JSDOM(html).window.document;
+  assert.ok(doc.querySelector('[data-batch-form]'));
+  assert.equal(doc.querySelector('[data-hex-form]'),null);
+  assert.ok(doc.querySelector('option[value="mirmir"]'));
+  assert.ok(html.includes('2 áreas selecionadas'));
 });
 test('player interface has consultation only and no hidden names in SVG or list', async () => {
   const f = await uiFixture(); f.game.user.isGM = false; f.api.selectHex('sceneA:3:2');

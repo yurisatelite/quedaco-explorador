@@ -83,4 +83,28 @@
 .qe-check input { width:16px; height:16px; min-height:0; margin:0; }
 .qe-integrations pre { white-space:pre-wrap; overflow-wrap:anywhere; background:#10151d; border:1px solid var(--qe-line); border-radius:8px; padding:16px; color:var(--qe-accent); line-height:1.6; font-size:12px; }
 .qe-description { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.6; font-size:12px; }
+.qe-location { display:flex; flex-direction:column; gap:8px; border-top:1px solid var(--qe-line); padding-top:16px; }
+.qe-location small { color:var(--qe-muted); font-size:10px; line-height:1.5; }
+.qe-location strong { font-size:13px; line-height:1.5; }
+.qe-selection-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:12px; color:var(--qe-muted); font-size:11px; }
+.qe-selection-toolbar>button { min-height:28px; padding:4px 8px; font-size:11px; }
+.qe-app .qe-check { display:flex; flex-direction:row; align-items:center; gap:8px; }
+.qe-check input { flex:0 0 16px; }
+.qe-cell.inactive polygon { fill-opacity:0; stroke:#8392a3; stroke-dasharray:4 4; opacity:.4; }
+.qe-area-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.qe-area-actions button { flex:1; font-size:11px; }
+.qe-tag-form { display:flex; align-items:end; gap:12px; }
+.qe-tag-form label { flex:1; }
+.qe-tag-list { display:flex; flex-wrap:wrap; gap:8px; margin-top:24px; }
+.qe-tag-picker .qe-check { padding:4px 0; }
+.qe-renumber,.qe-npcs,.qe-notes { border-top:1px solid var(--qe-line); padding-top:16px; margin-top:8px; display:flex; flex-direction:column; gap:12px; }
+.qe-npc-row { display:flex; gap:8px; align-items:center; justify-content:space-between; font-size:12px; }
+.qe-npc-row button { font-size:10px; min-height:28px; padding:4px 8px; }
+.qe-app .qe-note-card { display:flex; flex-direction:column; align-items:flex-start; text-align:left; padding:12px; }
+.qe-note-card small { color:var(--qe-muted); font-size:10px; }
+.qe-inspector h3 { overflow-wrap:anywhere; }
+.qe-scene-config fieldset { display:flex; flex-direction:column; gap:12px; margin:16px 0; padding:16px; }
+.qe-scene-config p { font-size:12px; line-height:1.6; }
+.qe-scene-config .form-group { gap:8px; }
+.scene-config .tabs:has([data-tab=quedaco-explorador]) { flex-wrap:wrap; }
 @media(max-width:960px) { .qe-shell { grid-template-columns:184px minmax(0,1fr); } .qe-main { padding:16px; } .qe-workspace { grid-template-columns:minmax(0,1fr); } .qe-inspector { width:100%; } }
