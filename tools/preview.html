@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Quedaço - Explorador · Prévia</title><link rel="stylesheet" href="/styles/explorer.css"><style>html,body{margin:0;background:#080e16;height:100%;}body{display:grid;place-items:center}.qe-app{width:min(1240px,100vw);height:min(860px,100vh)}.window-content{height:100%}.qe-shell{height:100%}</style></head>
+<body><div class="qe-app"><div class="window-content" id="preview"></div></div><script src="/node_modules/handlebars/dist/handlebars.min.js"></script><script type="module">
+import {uiFixture} from '/tools/fixture.mjs';
+const f = await uiFixture();
+const root = document.getElementById('preview');
+Handlebars.registerHelper('eq', (a,b) => a === b);
+const template = Handlebars.compile(await (await fetch('/templates/explorer.hbs')).text());
+f.app.render = async () => {const context = await f.app._prepareContext(); root.innerHTML = template(context); f.app.element = root; f.app._onRender(context, {});};
+f.scene.view = async () => {};
+canvas['quedaco-explorador'] = {activate() {}};
+globalThis.fromUuid = async () => ({documentName: 'JournalEntry', testUserPermission: () => true, sheet: {render() {}}});
+const originalUpdate = f.scene.update.bind(f.scene);
+f.scene.update = async data => {const result = await originalUpdate(data); await f.app.render(); return result;};
+window.previewFixture = f;
+await f.app.render();
+</script></body></html>

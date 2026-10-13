@@ -1,0 +1,11 @@
+{
+  "name": "quedaco-explorador",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "package": "powershell -NoProfile -File tools/package.ps1"
+  },
+  "devDependencies": { "handlebars": "^4.7.10", "jsdom": "^30.1.2" }
+}

@@ -1,0 +1,51 @@
+<div class="qe-shell">
+  <aside class="qe-sidebar">
+    <div class="qe-brand"><i class="fa-solid fa-compass"></i><div><span>QUEDAÇO</span><strong>Explorador</strong></div><small>0.1.0</small></div>
+    <label class="qe-scene-label">Mapa da campanha<select name="scene" aria-label="Mapa da campanha">{{#each scenes}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}</select></label>
+    <nav aria-label="Menu do Explorador">{{#each nav}}<button type="button" data-tab="{{id}}" aria-current="{{#if active}}page{{else}}false{{/if}}"><i class="fa-solid fa-{{icon}}"></i>{{label}}</button>{{/each}}</nav>
+    <div class="qe-progress"><small>DESCOBERTA DO MAPA</small><strong>{{stats.explored}} <span>/ {{stats.total}} hexes</span></strong><div class="qe-state-counts"><span>{{stats.hidden}} ocultos</span><span>{{stats.partial}} parciais</span></div></div>
+    <div class="qe-sidebar-bottom"><span class="qe-status {{#if enabled}}active{{/if}}">{{#if enabled}}Exploração ativa{{else}}Exploração desativada{{/if}}</span><small>{{#if isGM}}Modo Mestra · edição habilitada{{else}}Modo jogador · consulta{{/if}}</small></div>
+  </aside>
+  <main class="qe-main">
+    <div class="qe-topbar"><div><small>QUEDAÇO - EXPLORADOR</small><h2>{{#if sceneName}}{{sceneName}}{{else}}Seu próximo mapa começa aqui{{/if}}</h2></div>{{#if hasScene}}{{#unless error}}<button type="button" data-command="canvas"><i class="fa-solid fa-map"></i> Abrir no canvas</button>{{/unless}}{{/if}}</div>
+    {{#unless hasScene}}<div class="qe-empty"><i class="fa-solid fa-map"></i><h3>Nenhuma cena disponível</h3><p>Crie uma cena no Foundry e configure uma grade hexagonal para começar.</p></div>{{else}}
+    {{#if error}}<div class="qe-message" role="alert">{{error}}</div>{{/if}}
+    {{#unless enabled}}{{#unless error}}<div class="qe-message"><span>Ative este mapa para começar a revelar os hexes. Os dados são salvos na própria cena.</span>{{#if isGM}}<button type="button" data-command="activate">Ativar exploração</button>{{/if}}</div>{{/unless}}{{/unless}}
+    {{#if exploration}}
+      <div class="qe-workspace">
+        <section class="qe-map-panel"><div class="qe-section-head"><div><h3>Território em descoberta</h3><small>Clique em um hex para abrir sua identificação.</small></div><div class="qe-legend"><span>◌ Oculto</span><span>◐ Parcial</span><span>● Explorado</span></div></div>
+          {{#unless error}}<svg class="qe-map" viewBox="{{viewBox}}" role="group" aria-label="Mapa hexagonal de {{sceneName}}" data-gm="{{isGM}}" style="--qe-gm-opacity:{{config.gmOpacity}};--qe-cover:{{config.color}}">
+            {{#if background}}<image href="{{background}}" x="{{bounds.x}}" y="{{bounds.y}}" width="{{bounds.width}}" height="{{bounds.height}}" preserveAspectRatio="none"/>{{/if}}
+            {{#each cells}}<g class="qe-cell {{state}} {{#if selected}}selected{{/if}}" data-hex="{{id}}" role="button" tabindex="0" aria-label="{{label}}"><title>{{name}} · {{label}}</title><polygon points="{{points}}"/>{{#if ../config.showLabels}}{{#if ../isGM}}<text x="{{center.x}}" y="{{center.y}}">{{label}}</text>{{else}}{{#if (eq state "explored")}}<text x="{{center.x}}" y="{{center.y}}">{{label}}</text>{{/if}}{{/if}}{{/if}}</g>{{/each}}
+          </svg>{{/unless}}
+          <div class="qe-map-help">No canvas, use a bússola na barra de ferramentas. A Mestra pode pintar os estados por clique ou arraste.</div>
+        </section>
+        {{> qeInspector}}
+      </div>
+    {{/if}}
+    {{#if hexList}}<div class="qe-workspace"><section class="qe-list-panel"><form data-filter-form class="qe-filter"><label>Busca<input name="search" value="{{search}}" placeholder="ID, nome, região ou tag"></label><label>Estado<select name="state"><option value="">Todos</option>{{#each states}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label><button type="submit">Filtrar</button></form><small class="qe-list-count">{{filteredCount}} hexes encontrados{{#if limited}} · mostrando os primeiros 200; refine a busca{{/if}}</small><div class="qe-hex-list">{{#each filtered}}<button type="button" class="qe-hex-row {{#if selected}}selected{{/if}}" data-hex="{{id}}"><span><strong>{{#if name}}{{name}}{{else}}{{label}}{{/if}}</strong><small>{{label}}{{#if region}} · {{region}}{{/if}}</small></span><span class="qe-badge {{state}}">{{stateLabel}}</span></button>{{else}}<p class="qe-empty">Nenhum hex corresponde ao filtro.</p>{{/each}}</div></section>{{> qeInspector}}</div>{{/if}}
+    {{#if settings}}<section class="qe-card qe-settings"><h3>Configuração do mapa</h3><p>A grade é a mesma da cena no Foundry. O ID combina a cena, a linha e a coluna. Preserve o tamanho e a posição da grade depois de cadastrar os hexes.</p><form data-config-form>
+      <label class="qe-check"><input type="checkbox" name="enabled" {{#if config.enabled}}checked{{/if}}> Ativar exploração nesta cena</label>
+      <label class="qe-check"><input type="checkbox" name="showLabels" {{#if config.showLabels}}checked{{/if}}> Mostrar identificação dos hexes no mapa</label>
+      <label>Estado dos hexes ainda não cadastrados<select name="defaultState">{{#each defaultStates}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+      <label>Cor da cobertura<input type="color" name="color" value="{{config.color}}"></label>
+      <label>Opacidade da cobertura para a Mestra<input type="number" name="gmOpacity" min="0" max="1" step="0.01" value="{{config.gmOpacity}}"></label>
+      <p class="qe-hint">Para jogadores: hex oculto tem cobertura opaca; parcial tem cobertura translúcida; explorado fica aberto. A visão e a névoa nativas do Foundry continuam valendo.</p>
+      <button class="qe-primary" type="submit">Salvar configuração</button>
+    </form></section>{{/if}}
+    {{#if integration}}<section class="qe-card qe-integrations"><h3>Integrações dos seus módulos</h3><p>Use o ID estável do hex para ligar regiões, personagens, tabelas e registros de campanha. A API pode ser usada por macros e outros módulos.</p><pre><code>{{integrationCode}}</code></pre><p>Eventos disponíveis: <code>hexSelected</code>, <code>hexUpdated</code>, <code>hexStateChanged</code> e <code>sceneConfigured</code>, com o prefixo <code>quedaco-explorador:</code>.</p><div class="qe-integration-actions"><button type="button" data-command="export">Exportar dados da cena</button>{{#if legacy}}<button type="button" data-command="import" {{#unless enabled}}disabled{{/unless}}>Importar estados do World Explorer</button>{{else}}<small>Esta cena não possui estados salvos pelo World Explorer.</small>{{/if}}</div><p class="qe-hint">A importação preenche apenas hexes ainda não cadastrados aqui. Os dados originais e suas edições são preservados. As anotações do hex são dados compartilhados da cena; guarde segredos em diários privados.</p></section>{{/if}}
+    {{/unless}}
+  </main>
+</div>
+
+{{#*inline "qeInspector"}}
+<aside class="qe-inspector">
+  {{#if selected}}<div class="qe-inspector-head"><small>IDENTIFICAÇÃO DO HEX</small><h3>{{selected.label}}</h3><code>{{selected.id}}</code><span class="qe-badge {{selected.state}}">{{selectedState}}</span></div>
+    <button type="button" data-command="focus"><i class="fa-solid fa-crosshairs"></i> Centralizar no canvas</button>
+    {{#if isGM}}<div class="qe-state-actions"><button type="button" data-state="hidden" {{#unless enabled}}disabled{{/unless}} title="Ocultar">Ocultar</button><button type="button" data-state="partial" {{#unless enabled}}disabled{{/unless}} title="Revelar parcialmente">Parcial</button><button type="button" data-state="explored" {{#unless enabled}}disabled{{/unless}} title="Marcar como explorado">Explorar</button></div>
+      <form data-hex-form><label>Nome<input name="name" value="{{selected.name}}" maxlength="200" placeholder="Um nome para este lugar"></label><label>Terreno<select name="terrain">{{#if customTerrain}}<option selected>{{customTerrain}}</option>{{/if}}{{#each terrains}}<option {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label><label>Região<input name="region" value="{{selected.region}}" maxlength="200"></label><label>Tags<input name="tags" value="{{selectedTags}}" placeholder="ruína, rota, encontro"></label><label>Descrição compartilhada<textarea name="description" rows="4" maxlength="12000">{{selected.description}}</textarea></label><details><summary>Vincular documentos</summary><label>UUID da cena<input name="sceneUuid" value="{{selected.sceneUuid}}" placeholder="Scene.ID"></label><label>UUID do diário<input name="journalUuid" value="{{selected.journalUuid}}" placeholder="JournalEntry.ID"></label></details><button class="qe-primary" type="submit" {{#unless enabled}}disabled{{/unless}}>Salvar hex</button></form>
+    {{else}}<h3>{{selected.name}}</h3>{{#if selected.terrain}}<p>{{selected.terrain}}{{#if selected.region}} · {{selected.region}}{{/if}}</p>{{/if}}<p class="qe-description">{{selected.description}}</p>{{#unless selected.name}}<p class="qe-hint">Este hex ainda não possui informações reveladas.</p>{{/unless}}{{/if}}
+    <div class="qe-links">{{#if selected.sceneUuid}}<button type="button" data-command="scene">Abrir cena vinculada</button>{{/if}}{{#if selected.journalUuid}}<button type="button" data-command="journal">Abrir diário vinculado</button>{{/if}}</div>
+  {{else}}<div class="qe-empty"><i class="fa-solid fa-location-dot"></i><h3>Selecione um hex</h3><p>Clique no mapa ou na lista para consultar a identificação e os vínculos deste lugar.</p></div>{{/if}}
+</aside>
+{{/inline}}
