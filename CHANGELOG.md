@@ -1,5 +1,10 @@
 # Histórico
 
+## 0.3.4 · 14/10/2026
+
+- Consulta catálogo compartilhado ao vivo; criação de tags delegada ao QUEDAÇO quando disponível.
+- Preserva tags locais e funcionamento independente; aceita também calendário com ID quedaco-calendar.
+
 ## 0.3.3 · 13/10/2026
 
 - Vermelho a 50% somente na prévia administrativa do Explorador.

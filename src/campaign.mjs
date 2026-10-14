@@ -18,7 +18,7 @@ export function createCampaignBridge(game, explorer, {emit = () => {}} = {}) {
   let catalog = {regions: [], places: [], tags: []};
   const gm = () => {if (!game.user.isGM) throw Error('Somente a Mestra pode controlar a campanha.');};
   const main = capability => familyApi(game, MAIN, capability);
-  const calendar = () => familyApi(game, CALENDAR, 'calendar');
+  const calendar = () => familyApi(game, CALENDAR, 'calendar')??familyApi(game,'quedaco-calendar','calendar');
   const npcs = () => {const api = main('npcDatabase'); try {return api?.listNpcs?.() ?? [];} catch {return [];}};
   function getCurrentLocation() {
     const stored = game.settings.get(ID, 'currentLocation');
@@ -31,8 +31,9 @@ export function createCampaignBridge(game, explorer, {emit = () => {}} = {}) {
     emit(`${ID}:catalogChanged`, getCatalog());
   }
   function getCatalog() {
-    const tags = [...catalog.tags, ...(game.settings.get(ID, 'tagCatalog') ?? [])];
-    return structuredClone({...catalog, tags: [...new Map(tags.map(t => [t.id, t])).values()]});
+    let base=catalog;const provider=main('worldCatalog');if(provider?.getWorldCatalog){try{base=provider.getWorldCatalog();}catch{}}
+    const tags = [...base.tags, ...(game.settings.get(ID, 'tagCatalog') ?? [])];
+    return structuredClone({...base, tags: [...new Map(tags.map(t => [t.id, t])).values()]});
   }
   function getNPCs(hexId) {
     const hex = explorer.getHex(hexId);
@@ -69,6 +70,8 @@ export function createCampaignBridge(game, explorer, {emit = () => {}} = {}) {
       const tags = [...(game.settings.get(ID, 'tagCatalog') ?? [])];
       const found = getCatalog().tags.find(t => t.label.toLocaleLowerCase('pt-BR') === value.toLocaleLowerCase('pt-BR'));
       if (found) return found;
+      const provider=main('worldCatalog');
+      if(typeof provider?.upsertCatalogRecord==='function'){const id='content:'+value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');return provider.upsertCatalogRecord('tags',{id,name:value,category:'exploration',visibility:'public'});}
       const tag = {id: value, label: value}; tags.push(tag);
       await game.settings.set(ID, 'tagCatalog', tags); emit(`${ID}:catalogChanged`, getCatalog()); return tag;
     },

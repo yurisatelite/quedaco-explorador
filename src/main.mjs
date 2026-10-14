@@ -83,3 +83,5 @@ Hooks.on('renderSceneDirectory', (directory, html) => {
   button.addEventListener('click', () => open());
   (root.querySelector('.header-actions') ?? root.querySelector('.directory-header') ?? root).prepend(button);
 });
+
+Hooks.on('quedaco:catalog-updated',()=>report(async()=>{if(bridge){await bridge.initialize();refresh();}}));

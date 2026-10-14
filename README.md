@@ -62,3 +62,8 @@ node tools/preview-server.mjs
 ```
 
 Prévia local: `http://127.0.0.1:3187`. Usa dados fictícios e não acessa o mundo da campanha. A suíte verifica dados, permissões, filas de persistência, pintura em lote, migração e interface com substitutos das APIs do Foundry. A integração gráfica final precisa ser conferida no Foundry 13 real; testes locais não substituem esse passo.
+
+
+## Catálogo compartilhado (0.3.4)
+
+Quando QUEDAÇO 0.18.0 está ativo, regiões, localidades, tags e climas vêm do cadastro central. Novas tags são gravadas pela API do proprietário; tags locais antigas são preservadas. Sem o principal, funciona com catálogo e tags locais.
