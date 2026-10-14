@@ -44,13 +44,16 @@ export function createCampaignBridge(game, explorer, {emit = () => {}} = {}) {
     };
   }
   function listNotes(hexId) {
-    explorer.getHex(hexId);
+    const hex = explorer.getHex(hexId);
+    if (!game.user.isGM && (!hex.active || hex.state !== 'explored')) return [];
     const provider = calendar();
-    if (typeof provider?.listPlaceNotes !== 'function') return [];
+    const local = Array.from(game.journal ?? []).filter(doc => doc.flags?.[ID]?.note?.locationId === hexId && doc.testUserPermission(game.user, 'OBSERVER'))
+      .map(doc => ({...doc.flags[ID].note, uuid:doc.uuid, title:doc.name, author:game.users?.get(doc.flags[ID].note.authorId)?.name ?? 'Jogador'}));
+    if (typeof provider?.listPlaceNotes !== 'function') return local;
     let rows; try {rows = provider.listPlaceNotes(hexId);} catch {return [];}
-    return (Array.isArray(rows) ? rows : []).filter(r => r && typeof r.uuid === 'string')
+    return [...local, ...(Array.isArray(rows) ? rows : []).filter(r => r && typeof r.uuid === 'string')
       .map(r => ({uuid: r.uuid, title: String(r.title ?? ''), author: game.users?.get(r.authorId)?.name ?? 'Diário de campanha', dateLabel: String(r.dateLabel ?? ''), absoluteDay: r.absoluteDay, timelineId: r.timelineId, locationId: hexId, visibility: r.visibility}))
-      .sort((a, b) => b.absoluteDay - a.absoluteDay);
+    ].sort((a, b) => b.absoluteDay - a.absoluteDay);
   }
   const api = {
     registerCatalog, getCatalog, getNPCs, listNotes, getCurrentLocation,
@@ -87,7 +90,7 @@ export function createCampaignBridge(game, explorer, {emit = () => {}} = {}) {
     getNPCCandidates: () => game.user.isGM ? npcs().map(n => ({uuid: n.uuid, name: n.name})) : [],
     async setCurrentLocation(hexId) {
       gm(); const hex = explorer.getHex(hexId);
-      if (!hex.active) throw Error('A localização do grupo precisa ser uma área ativa.');
+      if (!hex.active || hex.state !== 'explored') throw Error('A localização do grupo precisa ser uma área ativa e explorada.');
       await game.settings.set(ID, 'currentLocation', {hexId: hex.id, sceneId: hex.sceneId});
       emit(`${ID}:locationChanged`, {hex}); return hex;
     },
@@ -96,26 +99,43 @@ export function createCampaignBridge(game, explorer, {emit = () => {}} = {}) {
       return {location: getCurrentLocation(), date: clock?.getCurrentDate?.() ?? null, timelineId: timelines?.activeId ?? 'main', canCreateNote: !!(clock && typeof clock.saveLocationRecord === 'function')};
     },
     /** A nota é criada e guardada pelo Calendário (dono dos diários, que valida a permissão). Aqui só se informa o local. */
-    async createNote({title, description, hexId, absoluteDay} = {}) {
+    async createNote({title, description, hexId, absoluteDay, skyfallDate, visibility = 'public'} = {}) {
       const clock = calendar();
-      if (!clock || typeof clock.saveLocationRecord !== 'function') throw Error('Ative uma versão compatível do QUEDAÇO - Calendário para criar notas datadas no diário pessoal.');
       const current = getCurrentLocation();
       const hex = game.user.isGM && hexId ? explorer.getHex(hexId) : current;
-      if (!hex?.active) throw Error('A Mestra precisa definir a localização do grupo.');
+      if ((!clock || typeof clock.saveLocationRecord !== 'function') && !skyfallDate) throw Error('Calendário indisponível: informe uma data Skyfall para registrar a nota.');
+      if (!hex?.active || hex.state !== 'explored') throw Error('Defina uma localização ativa e explorada antes de criar a anotação.');
       if (!game.user.isGM && hexId && hexId !== current?.id) throw Error('A nota deve usar a localização definida pela Mestra.');
+      if (!clock || typeof clock.saveLocationRecord !== 'function') {
+        const date = skyfallDate ?? {};
+        const year = Number(date.year), cycle = Number(date.cycle), day = Number(date.day);
+        if (![year, cycle, day].every(Number.isInteger) || cycle < 1 || cycle > 16 || day < 1 || day > 15) throw Error('Sem Calendário: informe uma data Skyfall válida (anel, ciclo e dia).');
+        const absolute = year * 240 + (cycle - 1) * 15 + day - 1;
+        const note = {uuid:`${ID}.note.${Date.now()}`, title:String(title ?? '').trim() || `Anotação HEX ${hex.shortCode} · Anotação do grupo`, authorId:game.user.id, dateLabel:`Dia ${day} · Ciclo ${cycle} · Anel ${Math.abs(year)} ${year < 0 ? 'A.F.' : 'D.F.'}`, absoluteDay:absolute, timelineId:'main', locationId:hex.id, visibility:visibility === 'public' ? 'public' : 'private'};
+        if (!Number.isSafeInteger(absolute)) throw Error('Data Skyfall fora dos limites.');
+        if (!game.user.isGM && !game.user.can?.('JOURNAL_CREATE')) throw Error('A Mestra precisa permitir a criação de diários para salvar notas sem Calendário.');
+        const escape = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+        const doc = await JournalEntry.create({name:note.title, ownership:{default:note.visibility === 'public' ? 2 : 0, [game.user.id]:3}, flags:{[ID]:{note}},
+          pages:[{name:note.title, type:'text', text:{format:1, content:`<p>${escape(note.dateLabel)} · Clima: não informado</p><p>${escape(description ?? '').replace(/\n/g, '<br>')}</p>`}}]});
+        emit(`${ID}:noteCreated`, {uuid:doc.uuid, location:{hexId:hex.id, absoluteDay:absolute, dateLabel:note.dateLabel}});
+        return {uuid:doc.uuid, location:{hexId:hex.id, absoluteDay:absolute, dateLabel:note.dateLabel}};
+      }
       const date = clock.getCurrentDate();
       const day = game.user.isGM && absoluteDay !== undefined ? Number(absoluteDay) : date.absoluteDay;
       if (!Number.isSafeInteger(day)) throw Error('Data inválida.');
       const timelineId = clock.getTimelines?.()?.activeId ?? 'main';
       const place = {ref: hex.id, name: label(hex), regionId: hex.regionId ?? '', source: ID};
-      const uuid = await clock.saveLocationRecord({title: String(title ?? '').trim(), description: String(description ?? '').trim(),
-        location: [label(hex), hex.region].filter(Boolean).join(' · ').slice(0,200), visibility: 'public', absoluteDay: day, timelineId, calendarMode: date.mode ?? 'lunar', place});
+      const uuid = await clock.saveLocationRecord({title: String(title ?? '').trim() || `Anotação HEX ${hex.shortCode} · Anotação do grupo`, description: String(description ?? '').trim(),
+        location: [label(hex), hex.region].filter(Boolean).join(' · ').slice(0,200), visibility: visibility === 'public' ? 'public' : 'private', absoluteDay: day, timelineId, calendarMode: date.mode ?? 'lunar', place,
+        dateTags: [`anel:${date.year}`, `ciclo:${date.cycle}`, `dia:${date.day}`]});
       const location = {hexId: hex.id, sceneId: hex.sceneId, regionId: hex.regionId, name: label(hex), authorId: game.user.id,
         absoluteDay: day, timelineId, dateLabel: day === date.absoluteDay ? dateLabel(date) : `Dia ${day} · ${timelineId}`};
       emit(`${ID}:noteCreated`, {uuid, location});
       return {uuid, location};
     },
     async openNote(uuid) {
+      const local = Array.from(game.journal ?? []).find(doc => doc.uuid === uuid && doc.flags?.[ID]?.note);
+      if (local) { const hex = explorer.getHex(local.flags[ID].note.locationId); if (!local.testUserPermission(game.user,'OBSERVER') || (!game.user.isGM && (!hex.active || hex.state !== 'explored'))) throw Error('Anotação indisponível.'); return local.sheet.render(true); }
       const clock = calendar();
       if (typeof clock?.openRecord !== 'function') throw Error('Anotação indisponível.');
       return clock.openRecord(uuid);

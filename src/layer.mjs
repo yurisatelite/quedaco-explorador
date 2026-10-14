@@ -36,13 +36,14 @@ export function createExplorerLayer({getApi, getSelection, getSelections = () =>
         const color = parseInt(config.color.slice(1), 16);
         for (const cell of cells) {
           const hex = readHex(scene, cell, game.user), selected = getSelections().includes(cell.id);
-          if (!hex.active) continue;
-          const alpha = hex.state === 'explored' ? 0 : isGM ? config.gmOpacity : hex.state === 'partial' ? 0.6 : 1;
-          const outline = selected ? 0x67e8f9 : hex.state === 'explored' ? 0x65d6a5 : hex.state === 'partial' ? 0xf2c879 : 0x64748b;
+          if (!hex.active && !isGM) continue;
+          const inactive = !hex.active;
+          const alpha = inactive ? 0.5 : hex.state === 'explored' ? 0 : isGM ? config.gmOpacity : hex.state === 'partial' ? 0.6 : 1;
+          const outline = selected ? 0x67e8f9 : inactive ? 0xef4444 : hex.state === 'explored' ? 0x65d6a5 : hex.state === 'partial' ? 0xf2c879 : 0x64748b;
           graphics.lineStyle(selected ? 3 : 1, outline, selected ? 1 : 0.35);
-          graphics.beginFill(color, alpha);
+          graphics.beginFill(inactive ? 0xef4444 : color, alpha);
           graphics.drawPolygon(cell.vertices.flatMap(p => [p.x, p.y])); graphics.endFill();
-          if (config.labelMode !== 'none' && (config.labelMode === 'all' || selected) && (isGM || hex.state === 'explored')) {
+          if (hex.active && config.labelMode !== 'none' && (config.labelMode === 'all' || selected) && (isGM || hex.state === 'explored')) {
             const label = this.display.addChild(new PIXI.Text(config.labelMode === 'all' || getSelections().length > 1 ? hex.shortCode : (hex.name || hex.label).slice(0,60), {fontFamily: 'sans-serif', fontSize: Math.max(10, Math.min(20, scene.grid.size / 7)), fill: '#ffffff', stroke: '#111827', strokeThickness: 3, wordWrap: true, wordWrapWidth: scene.grid.size * 0.85, align: 'center'}));
             label.anchor.set(0.5); label.position.set(cell.center.x, cell.center.y); label.eventMode = 'none';
           }
@@ -72,10 +73,26 @@ export function createExplorerLayer({getApi, getSelection, getSelections = () =>
         const id = this.hexAt(event.getLocalPosition(canvas.stage));
         getApi().selectHex(id, {additive: game.user.isGM && !!(event.shiftKey || event.ctrlKey || event.metaKey || event.nativeEvent?.shiftKey || event.nativeEvent?.ctrlKey)}); open();
         const tool = ui.controls.tool.name;
-        if (Object.hasOwn(STATES, tool) && game.user.isGM) await getApi().setState(id, tool);
+        if (tool === 'explored' && game.user.isGM) {
+          const current = getApi().getHex(id);
+          await getApi().setState(id, current.state === 'explored' ? 'hidden' : 'explored');
+        } else if (Object.hasOwn(STATES, tool) && game.user.isGM) await getApi().setState(id, tool);
       });
     }
     _onClickLeft2(event) { this._onClickLeft(event); }
+    _onClickRight(event) {
+      if (!game.user.isGM) return;
+      event.preventDefault?.();
+      report(async () => {
+        const id = this.hexAt(event.getLocalPosition(canvas.stage));
+        const hex = getApi().getHex(id);
+        if (!hex.active) return;
+        const confirmed = globalThis.Dialog?.confirm
+          ? await Dialog.confirm({title: 'Desliberar área', content: `<p>Apagar a exploração de <strong>${foundry.utils.escapeHTML(hex.name || hex.label)}</strong>? Os jogadores voltarão a vê-la como não explorada.</p>`})
+          : true;
+        if (confirmed) { await getApi().setState(id, 'hidden'); ui.notifications.info('Área ocultada.'); }
+      });
+    }
     _canDragLeftStart() { return game.user.isGM && (ui.controls.tool.name === 'select' || Object.hasOwn(STATES, ui.controls.tool.name)); }
     _onDragLeftStart(event) {
       this.paint = new Set(); this.paintState = ui.controls.tool.name;

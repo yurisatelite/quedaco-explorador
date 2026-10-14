@@ -57,11 +57,11 @@ test('layer paints coverage and labels, selects on click, and exposes V13 contro
   await Promise.all(f.jobs); assert.equal(f.api.getHex('sceneA:1:1').state, 'explored');
 });
 
-test('disabled border cells have no coverage and do not participate in painting', async () => {
+test('disabled border cells appear in red for the GM and do not participate in painting', async () => {
   const f = await setup();
   await f.api.setActive(['sceneA:0:0','sceneA:0:1'],false); f.layer.refresh();
   const graphics = f.layer.display.children[0];
-  assert.equal(graphics.commands.filter(c => c[0] === 'polygon').length,70);
+  assert.equal(graphics.commands.filter(c => c[0] === 'polygon').length,72);
   ui.controls.tool.name = 'partial';
   f.layer._onDragLeftStart({interactionData:{origin:f.scene.grid.getCenterPoint({i:0,j:0})}});
   assert.equal(f.layer.paint.size,0);

@@ -52,7 +52,7 @@ export function createExplorerApp({getApi, getSelection, getSelections = () => [
         cells, viewBox: r ? `${r.x} ${r.y} ${r.width} ${r.height}` : '0 0 100 100', background: safeBackground(scene?.background?.src), bounds: r,
         legacy: !!scene?.flags?.['world-explorer']?.gridData, hasSelection: !!selected, npcs, npcCandidates: api.getNPCCandidates?.() ?? [],
         notes: selected ? api.listNotes?.(selected.id) ?? [] : [], currentLocationName: campaign.location?.name || campaign.location?.label,
-        selectedIsCurrent: campaign.location?.id === selected?.id, canCreateNote: !!(campaign.canCreateNote && selected?.active && (isGM || campaign.location?.id === selected?.id)),
+        selectedIsCurrent: campaign.location?.id === selected?.id, canCreateNote: !!(selected?.active && selected?.state === 'explored' && (isGM || campaign.location?.id === selected?.id)), calendarConnected: !!campaign.date,
         dateText: campaign.date ? `${campaign.date.day} · ${campaign.date.cycleName ?? ''} · ${Math.abs(campaign.date.year)} ${campaign.date.year < 0 ? 'A.F.' : 'D.F.'}` : 'Calendário não conectado',
         integrationCode: `const explorer = game.modules.get("${ID}").api;\nconst contexto = explorer.getCampaignContext();\nHooks.on("${ID}:hexSelected", ({hex}) => {\n  console.log(hex.name || hex.label, hex.region);\n});`};
     }
@@ -63,6 +63,11 @@ export function createExplorerApp({getApi, getSelection, getSelections = () => [
       root.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => {this.tab = b.dataset.tab; this.render({force:true});}));
       root.querySelector('[name="scene"]')?.addEventListener('change', e => {this.sceneId = e.target.value; clearSelection(); this.render({force:true});});
       root.querySelectorAll('[data-hex]').forEach(b => b.addEventListener('click', e => run(() => api.selectHex(b.dataset.hex, {additive: context.isGM && (e.shiftKey || e.ctrlKey || e.metaKey)}))));
+      root.querySelectorAll('[data-hex]').forEach(b => b.addEventListener('contextmenu', e => {
+        if (!context.isGM) return;
+        e.preventDefault();
+        run(async () => { const hex = api.getHex(b.dataset.hex); if (hex.active) await api.setState(hex.id, 'hidden'); });
+      }));
       root.querySelectorAll('g[data-hex]').forEach(b => b.addEventListener('keydown', e => {if (e.key === 'Enter' || e.key === ' ') {e.preventDefault(); b.dispatchEvent(new MouseEvent('click',{bubbles:true,shiftKey:e.shiftKey,ctrlKey:e.ctrlKey}));}}));
       root.querySelectorAll('[data-state]').forEach(b => b.addEventListener('click', () => run(() => api.setStates(context.selectionIds, b.dataset.state))));
       root.querySelectorAll('[data-view]').forEach(b => b.addEventListener('change', () => {this[b.dataset.view] = b.checked; this.render({force:true});}));
@@ -88,7 +93,7 @@ export function createExplorerApp({getApi, getSelection, getSelections = () => [
       root.querySelectorAll('[data-note]').forEach(b => b.addEventListener('click', () => run(() => api.openNote(b.dataset.note))));
       root.querySelector('[data-note-form]')?.addEventListener('submit', e => {
         e.preventDefault(); const data = new FormData(e.target);
-        run(async () => {await api.createNote({hexId:context.selected.id,title:String(data.get('title')),description:String(data.get('description'))}); ui.notifications.info('Nota publicada no diário, com data e localização.');});
+        run(async () => {const skyfallDate = context.calendarConnected ? undefined : {year:Number(data.get('year')),cycle:Number(data.get('cycle')),day:Number(data.get('day'))}; await api.createNote({hexId:context.selected.id,title:String(data.get('title')),description:String(data.get('description')),visibility:String(data.get('visibility') || 'private'),skyfallDate}); ui.notifications.info('Nota salva com data e localização.');});
       });
       root.querySelectorAll('[data-command]').forEach(b => b.addEventListener('click', () => run(async () => {
         switch (b.dataset.command) {

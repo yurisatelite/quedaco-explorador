@@ -41,6 +41,28 @@ test('public diary note is delegated to the Calendar API with an immutable place
   assert.equal(f.api.getCurrentLocation().id,'sceneA:2:2');
   assert.equal(await f.api.openNote(result.uuid),f.documents.get(result.uuid));
 });
+test('offline notes retain content, enforce journal ownership and stay inaccessible on hidden hexes', async () => {
+  const f = await uiFixture(); await f.api.setCurrentLocation('sceneA:2:2');
+  f.game.modules.get('quedaco-calendario').active = false;
+  f.game.journal = new Collection();
+  let saved;
+  globalThis.JournalEntry = {create:async data => {
+    saved = data;
+    const doc = {...data, uuid:'JournalEntry.offline', testUserPermission:user => user.id === data.flags[ID].note.authorId || data.ownership.default === 2, sheet:{render:() => true}};
+    f.game.journal.set('offline',doc); return doc;
+  }};
+  const result = await f.api.createNote({description:'Nossa visita <script>', visibility:'private', skyfallDate:{year:349,cycle:1,day:4}});
+  assert.equal(saved.ownership.default,0);
+  assert.match(saved.pages[0].text.content,/Nossa visita &lt;script&gt;/);
+  assert.equal(f.api.listNotes('sceneA:2:2').length,1);
+  const author = f.game.user.id; f.game.user.id = 'someoneElse'; f.game.user.isGM = false;
+  assert.equal(f.api.listNotes('sceneA:2:2').length,0);
+  await assert.rejects(() => f.api.openNote(result.uuid),/indisponível/);
+  f.game.user.id = author; f.game.user.isGM = true;
+  await f.api.setState('sceneA:2:2','hidden'); f.game.user.isGM = false;
+  assert.equal(f.api.listNotes('sceneA:2:2').length,0);
+  delete globalThis.JournalEntry;
+});
 test('player note uses only the GM location and date; absent calendar or disabled area blocks creation', async () => {
   const f = await uiFixture(); await f.api.setCurrentLocation('sceneA:2:2'); f.game.user.isGM = false;
   await assert.rejects(() => f.api.setCurrentLocation('sceneA:2:3'),/Mestra/);

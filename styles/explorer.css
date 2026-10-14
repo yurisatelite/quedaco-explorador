@@ -90,7 +90,7 @@
 .qe-selection-toolbar>button { min-height:28px; padding:4px 8px; font-size:11px; }
 .qe-app .qe-check { display:flex; flex-direction:row; align-items:center; gap:8px; }
 .qe-check input { flex:0 0 16px; }
-.qe-cell.inactive polygon { fill-opacity:0; stroke:#8392a3; stroke-dasharray:4 4; opacity:.4; }
+.qe-map[data-gm=true] .qe-cell.inactive polygon { fill:#ef4444; fill-opacity:.5; stroke:#f87171; stroke-dasharray:4 4; opacity:1; }
 .qe-area-actions { display:flex; gap:8px; flex-wrap:wrap; }
 .qe-area-actions button { flex:1; font-size:11px; }
 .qe-tag-form { display:flex; align-items:end; gap:12px; }

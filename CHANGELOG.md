@@ -1,5 +1,13 @@
 # Histórico
 
+## 0.3.2 · 13/10/2026
+
+- Ferramenta Explorar alterna revelação por clique; clique direito oculta sem desativar a área.
+- Desativação de bordas permanece no painel; áreas desativadas aparecem em vermelho a 50% para a Mestra.
+- Anotações exigem área ativa e explorada. Formulário oferece nota pessoal ou pública, com título padrão pelo HEX.
+- Data atual via API do Calendário; sem ele, data manual Skyfall e diário próprio do Explorador, com permissões nativas. Jogadores precisam da permissão de criar diários nesse modo.
+- Integrações opcionais e contrato QUEDAÇO v1 preservados. Clima aguarda módulo próprio.
+
 ## 0.3.0 · 13/10/2026 · Protocolo de Integração QUEDAÇO
 
 - Título `QUEDAÇO - Explorador`; id `quedaco-explorador` preservado. Dados salvos nas cenas intactos.
