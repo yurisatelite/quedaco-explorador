@@ -13,7 +13,7 @@ export function createExplorerLayer({getApi, getSelection, getSelections = () =>
           explored: tool('explored', 'Explorar: clique ou arraste', 'fa-solid fa-eye', 1, game.user.isGM),
           partial: tool('partial', 'Revelar parcialmente: clique ou arraste', 'fa-solid fa-circle-half-stroke', 2, game.user.isGM),
           hidden: tool('hidden', 'Ocultar: clique ou arraste', 'fa-solid fa-eye-slash', 3, game.user.isGM),
-          panel: {...tool('panel', 'Abrir menu lateral do Explorador', 'fa-solid fa-bars', 4), button: true, onChange: () => open()}
+          panel: {...tool('panel', 'Abrir menu lateral do Explorador', 'fa-solid fa-bars', 4, game.user.isGM), button: true, onChange: () => open()}
         }};
     }
     async _draw(options) {
@@ -36,12 +36,11 @@ export function createExplorerLayer({getApi, getSelection, getSelections = () =>
         const color = parseInt(config.color.slice(1), 16);
         for (const cell of cells) {
           const hex = readHex(scene, cell, game.user), selected = getSelections().includes(cell.id);
-          if (!hex.active && !isGM) continue;
           const inactive = !hex.active;
-          const alpha = inactive ? 0.5 : hex.state === 'explored' ? 0 : isGM ? config.gmOpacity : hex.state === 'partial' ? 0.6 : 1;
-          const outline = selected ? 0x67e8f9 : inactive ? 0xef4444 : hex.state === 'explored' ? 0x65d6a5 : hex.state === 'partial' ? 0xf2c879 : 0x64748b;
+          const alpha = inactive ? (isGM ? config.gmOpacity : 1) : hex.state === 'explored' ? 0 : isGM ? config.gmOpacity : hex.state === 'partial' ? 0.6 : 1;
+          const outline = selected ? 0x67e8f9 : inactive ? 0x64748b : hex.state === 'explored' ? 0x65d6a5 : hex.state === 'partial' ? 0xf2c879 : 0x64748b;
           graphics.lineStyle(selected ? 3 : 1, outline, selected ? 1 : 0.35);
-          graphics.beginFill(inactive ? 0xef4444 : color, alpha);
+          graphics.beginFill(color, alpha);
           graphics.drawPolygon(cell.vertices.flatMap(p => [p.x, p.y])); graphics.endFill();
           if (hex.active && config.labelMode !== 'none' && (config.labelMode === 'all' || selected) && (isGM || hex.state === 'explored')) {
             const label = this.display.addChild(new PIXI.Text(config.labelMode === 'all' || getSelections().length > 1 ? hex.shortCode : (hex.name || hex.label).slice(0,60), {fontFamily: 'sans-serif', fontSize: Math.max(10, Math.min(20, scene.grid.size / 7)), fill: '#ffffff', stroke: '#111827', strokeThickness: 3, wordWrap: true, wordWrapWidth: scene.grid.size * 0.85, align: 'center'}));
@@ -71,7 +70,7 @@ export function createExplorerLayer({getApi, getSelection, getSelections = () =>
     _onClickLeft(event) {
       report(async () => {
         const id = this.hexAt(event.getLocalPosition(canvas.stage));
-        getApi().selectHex(id, {additive: game.user.isGM && !!(event.shiftKey || event.ctrlKey || event.metaKey || event.nativeEvent?.shiftKey || event.nativeEvent?.ctrlKey)}); open();
+        getApi().selectHex(id, {additive: game.user.isGM && !!(event.shiftKey || event.ctrlKey || event.metaKey || event.nativeEvent?.shiftKey || event.nativeEvent?.ctrlKey)}); if (game.user.isGM) open();
         const tool = ui.controls.tool.name;
         if (tool === 'explored' && game.user.isGM) {
           const current = getApi().getHex(id);

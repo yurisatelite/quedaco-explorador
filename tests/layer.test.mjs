@@ -57,14 +57,20 @@ test('layer paints coverage and labels, selects on click, and exposes V13 contro
   await Promise.all(f.jobs); assert.equal(f.api.getHex('sceneA:1:1').state, 'explored');
 });
 
-test('disabled border cells appear in red for the GM and do not participate in painting', async () => {
+test('disabled border cells use dark coverage on canvas for both users and never participate in painting', async () => {
   const f = await setup();
   await f.api.setActive(['sceneA:0:0','sceneA:0:1'],false); f.layer.refresh();
   const graphics = f.layer.display.children[0];
   assert.equal(graphics.commands.filter(c => c[0] === 'polygon').length,72);
+  assert.equal(graphics.commands.some(c => c[0] === 'fill' && c[1] === 0xef4444),false);
   ui.controls.tool.name = 'partial';
   f.layer._onDragLeftStart({interactionData:{origin:f.scene.grid.getCenterPoint({i:0,j:0})}});
   assert.equal(f.layer.paint.size,0);
+  f.game.user.isGM = false; f.layer.refresh();
+  const fills = f.layer.display.children[0].commands.filter(c => c[0] === 'fill');
+  assert.deepEqual(fills[0], ['fill',0x111827,1]);
+  assert.deepEqual(fills[1], ['fill',0x111827,1]);
+  assert.equal(f.Layer.prepareSceneControls().tools.panel.visible,false);
 });
 test('drag records one batch and cancellation never persists it', async () => {
   const f = await setup(); ui.controls.tool.name = 'partial';

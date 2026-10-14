@@ -8,6 +8,7 @@ let api, app, selectedId, bridge;
 const selectedIds = new Set();
 const report = action => Promise.resolve().then(action).catch(error => {console.error(ID, error); ui.notifications.error(error.message);});
 const open = (sceneId) => {
+  if (!game.user.isGM) throw Error('O painel do Explorador é exclusivo da Mestra.');
   if (!app) return;
   if (sceneId) app.sceneId = sceneId;
   app.render({force: true}); return app;
@@ -74,6 +75,7 @@ Hooks.on('updateJournalEntryPage', refresh);
 Hooks.on('quedaco:register', () => report(async () => {if (bridge) {await bridge.initialize(); refresh();}}));
 Hooks.on(`${ID}:catalogChanged`, refresh);
 Hooks.on('renderSceneDirectory', (directory, html) => {
+  if (!game.user.isGM) return;
   const root = html instanceof HTMLElement ? html : html?.[0] ?? directory.element;
   if (!root || root.querySelector('[data-qe-open]')) return;
   const button = document.createElement('button'); button.type = 'button'; button.dataset.qeOpen = '';

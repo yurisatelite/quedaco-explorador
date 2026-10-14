@@ -70,7 +70,7 @@ export function createApi(game, {emit = () => {}, open = () => {}, select = () =
   }
   async function updateHex(id, changes) {return (await updateHexes([id], changes))[0];}
   const api = {
-    version: '0.3.2', schema: SCHEMA, open, getHex, listHexes,
+    version: '0.3.3', schema: SCHEMA, open, getHex, listHexes,
     getConfig: sceneId => readConfig(sceneFor(sceneId)),
     getSummary: sceneId => summary(listHexes(sceneId)),
     updateHex, updateHexes,

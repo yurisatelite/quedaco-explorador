@@ -1,6 +1,6 @@
 <div class="qe-shell">
   <aside class="qe-sidebar">
-    <div class="qe-brand"><i class="fa-solid fa-compass"></i><div><span>QUEDAÇO</span><strong>Explorador</strong></div><small>0.3.2</small></div>
+    <div class="qe-brand"><i class="fa-solid fa-compass"></i><div><span>QUEDAÇO</span><strong>Explorador</strong></div><small>0.3.3</small></div>
     <label>Mapa da campanha<select name="scene" aria-label="Mapa da campanha">{{#each scenes}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}</select></label>
     <nav aria-label="Menu do Explorador">{{#each nav}}<button type="button" data-tab="{{id}}" aria-current="{{#if active}}page{{else}}false{{/if}}"><i class="fa-solid fa-{{icon}}"></i>{{label}}</button>{{/each}}</nav>
     <div class="qe-progress"><small>DESCOBERTA DO MAPA</small><strong>{{stats.explored}} <span>/ {{stats.total}} áreas</span></strong><div class="qe-state-counts"><span>{{stats.hidden}} ocultas</span><span>{{stats.partial}} parciais</span></div><small>{{inactiveCount}} desativadas · {{unassignedCount}} sem região</small></div>
