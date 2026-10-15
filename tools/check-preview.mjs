@@ -13,6 +13,22 @@ await mkdir(output, {recursive: true});
 try {
   await page.goto('http://127.0.0.1:3187');
   await page.waitForSelector('[data-hex-form]');
+  async function checkLayout(label) {
+    const problems = await page.evaluate(() => {
+      const visible = el => el.getClientRects().length && getComputedStyle(el).display !== 'none';
+      return [...document.querySelectorAll('.qe-shell,.qe-sidebar,.qe-main,.qe-workspace,.qe-card,.qe-inspector,form,fieldset,button,input,select,textarea')]
+        .filter(visible).flatMap(el => {
+          // Single-line fields scroll their value internally; check their outer bounds below.
+          if (!el.matches('input,textarea') && el.scrollWidth > el.clientWidth + 2 && !['auto','scroll'].includes(getComputedStyle(el).overflowX)) return [`${el.className || el.tagName}: horizontal overflow`];
+          const parent = el.parentElement;
+          if (!parent || el.closest('svg')) return [];
+          const a = el.getBoundingClientRect(), b = parent.getBoundingClientRect();
+          return a.right > b.right + 2 || a.left < b.left - 2 ? [`${el.className || el.tagName}: outside parent`] : [];
+        });
+    });
+    assert.deepEqual(problems, [], label);
+  }
+  await checkLayout('desktop');
   await page.screenshot({path: output + 'explorador-desktop.png', fullPage: true});
   await page.locator('g[data-hex="sceneA:1:1"]').click();
   await page.waitForFunction(() => document.querySelector('[data-selected-area]')?.dataset.selectedArea === 'sceneA:1:1');
@@ -59,6 +75,23 @@ try {
   await page.locator('[data-tab="integration"]').click();
   await page.waitForSelector('.qe-integrations');
   await page.screenshot({path: output + 'explorador-integracoes.png', fullPage: true});
+  // Keep the browser wide while resizing only the app, as Foundry does.
+  await page.evaluate(async () => {
+    window.previewFixture.scene.name = 'Mapa de campanha com um nome muito longo '.repeat(8);
+    await window.previewFixture.api.updateHex('sceneA:1:1',{name:'LocalidadeComNomeSemEspacos'.repeat(8)});
+  });
+  for (const size of [{width:1000,height:700},{width:760,height:480},{width:520,height:600},{width:360,height:480}]) {
+    await page.locator('.qe-app').evaluate((el,size) => {el.style.width = `${size.width}px`; el.style.height = `${size.height}px`;},size);
+    for (const tab of ['exploration','hexes','settings','tags','integration']) {
+      await page.locator(`[data-tab="${tab}"]`).click();
+      if (tab === 'exploration') {
+        await page.locator('.qe-inspector details').evaluateAll(nodes => nodes.forEach(node => node.open = true));
+      }
+      await checkLayout(`${size.width}x${size.height} ${tab}`);
+    }
+    await page.locator('.qe-main').scrollIntoViewIfNeeded();
+    await page.screenshot({path:output + `explorador-layout-${size.width}.png`,fullPage:true});
+  }
   await page.evaluate(async () => {window.previewFixture.game.user.isGM = false; window.previewFixture.app.tab = 'exploration'; await window.previewFixture.app.render();});
   assert.equal(await page.locator('[data-hex-form]').count(), 0);
   assert.equal(await page.locator('[data-tab]').count(), 2);
