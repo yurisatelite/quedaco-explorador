@@ -17,10 +17,13 @@
     "maximum": "13"
   },
   "esmodules": [
-    "src/main.mjs"
+    "src/main.mjs",
+    "src/quedaco-ui.mjs"
   ],
   "styles": [
-    "styles/explorer.css"
+    "styles/quedaco-ui.css",
+    "styles/explorer.css",
+    "styles/quedaco-family.css"
   ],
   "relationships": {}
 }

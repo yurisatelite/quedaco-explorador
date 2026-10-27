@@ -1,0 +1,12 @@
+/* QUEDAÇO UI v1 — tokens reutilizáveis. Escopo explícito: não altera o Foundry. */
+.qd-ui{--qd-bg:#10151e;--qd-panel:#18212e;--qd-raised:#202d3d;--qd-line:#304155;--qd-text:#ecf2f8;--qd-muted:#a5b5c8;--qd-accent:#42c6df;--qd-success:#8bd3a7;--qd-warning:#edc27f;--qd-space-1:4px;--qd-space-2:8px;--qd-space-3:12px;--qd-space-4:16px;--qd-space-6:24px;--qd-space-8:32px;--qd-radius:12px;--qd-control:40px;color-scheme:dark}
+.qd-ui :focus-visible{outline:2px solid var(--qd-accent);outline-offset:3px}
+.qd-ui .qd-button{display:inline-flex;align-items:center;justify-content:center;gap:var(--qd-space-2);min-height:var(--qd-control);padding:10px 16px;border:1px solid var(--qd-line);border-radius:8px;background:var(--qd-panel);color:var(--qd-text);font-family:inherit;font-size:14px;font-weight:500;line-height:1.3;cursor:pointer}
+.qd-ui .qd-button--primary{border-color:transparent;background:var(--qd-accent);color:#07131e;font-weight:600}
+.qd-ui .qd-button:disabled{opacity:.45;cursor:default}
+.qd-ui .qd-panel{padding:var(--qd-space-6);border:1px solid var(--qd-line);border-radius:var(--qd-radius);background:var(--qd-panel)}
+.qd-ui .qd-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:var(--qd-space-4)}
+.qd-ui .qd-equal-cards{display:grid;grid-template-columns:repeat(var(--qd-columns,3),minmax(0,1fr));gap:var(--qd-space-2)}
+.qd-ui .qd-equal-cards>div{min-width:0;padding:var(--qd-space-3);border:1px solid var(--qd-line);border-radius:8px;text-align:center}
+.qd-ui [hidden]{display:none!important}
+@media(prefers-reduced-motion:reduce){.qd-ui *,.qd-ui *::before,.qd-ui *::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}

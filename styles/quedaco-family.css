@@ -1,0 +1,54 @@
+/* Shared management chrome. Document artwork, maps and printed pages keep their own identity. */
+@font-face{font-family:QuedacoUI;src:url('fonts/Outfit-Variable.ttf') format('truetype');font-weight:100 900;font-display:swap}
+.application.qd-family{--header-height:40px;--minimized-width:300px;container:qd-family / inline-size;max-width:calc(100vw - 32px);max-height:calc(100dvh - 32px);color:var(--qd-text);font-family:QuedacoUI,system-ui,sans-serif;font-size:14px;font-weight:400;color-scheme:dark;overflow-wrap:break-word}
+.application.qd-family:not(.minimized,.minimizing){min-width:min(340px,calc(100vw - 32px));min-height:min(360px,calc(100dvh - 32px))}
+.application.qd-family:is(.minimized,.minimizing){min-width:0;min-height:0}
+.qd-family *{box-sizing:border-box}
+.qd-family>.window-header{flex:0 0 40px;min-height:40px;gap:4px;padding:4px 8px;background:var(--qd-bg);color:var(--qd-muted);border-bottom:1px solid var(--qd-line)}
+.qd-family>.window-header>.window-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:500 12px QuedacoUI,system-ui,sans-serif}
+.qd-family>.window-header button.qd-window-control{display:grid;place-content:center;width:30px;min-width:30px;min-height:30px;height:30px;margin:0;padding:0;border:0;border-radius:8px;background:transparent;color:var(--qd-muted);font:400 24px/1 system-ui,sans-serif;box-shadow:none}
+.qd-family>.window-header button.qd-window-control::before{content:none}
+.qd-family>.window-header button.qd-window-control:hover{color:var(--qd-text);background:var(--qd-panel)}
+.qd-family>.window-content{min-width:0;min-height:0;background:var(--qd-bg);color:var(--qd-text)}
+.qd-family .window-content :where(button:not(.fa-solid,.fas,.far,.fab,.fal,.icon),input,select,textarea){font-family:QuedacoUI,system-ui,sans-serif;font-size:13px;font-weight:400;line-height:1.4;max-width:100%;min-width:0;border-radius:8px}
+.qd-family .window-content :is(input:not([type=checkbox],[type=radio],[type=range],[type=color],[type=file]),select,textarea){min-height:40px;padding:8px 12px;border:1px solid var(--qd-line);background:var(--qd-panel);color:var(--qd-text)}
+.qd-family .window-content :where(textarea){line-height:1.6;resize:vertical}
+.qd-family .window-content :where(input[type=checkbox],input[type=radio]){width:18px;height:18px;min-height:18px;flex:0 0 18px;margin:0;accent-color:var(--qd-accent)}
+.qd-family .window-content :where(label):has(>input:not([type=checkbox],[type=radio]),>select,>textarea){display:flex;flex-direction:column;gap:8px;min-width:0}
+.qd-family .window-content :where(label):has(>input[type=checkbox],>input[type=radio]){display:flex;flex-direction:row;align-items:center;gap:8px;white-space:normal}
+.qd-family .window-content button:not(.qd-action-primary,.qd-action-danger,.opath-day,[aria-pressed=true],[aria-current=page],.qd-danger,.qt-danger,.sy-danger){border-color:var(--qd-line);background:var(--qd-panel);color:var(--qd-text);box-shadow:none;font-weight:500}
+.qd-family .window-content button.qd-action-primary{min-height:40px;padding:10px 16px;border:1px solid transparent;border-radius:8px;background:var(--qd-accent);color:#07131e;font-weight:600;box-shadow:none}
+.qd-family .window-content button.qd-action-primary:hover{background:#89dfed}
+.qd-family .window-content button.qd-action-danger{background:#302027;border-color:#825660;color:#ffc2bf}
+.qd-family .window-content button:disabled{opacity:.45;cursor:default}
+.qd-family .window-content :where(nav,[role=tablist]) button:not([aria-pressed=true],[aria-current=page],[aria-selected=true],.is-active){background:transparent;color:var(--qd-muted)}
+.qd-family .window-content :where(h1,h2,h3,h4){font-family:QuedacoUI,system-ui,sans-serif;border:0;line-height:1.25}
+.qd-family .window-content :where(h1,h2){font-size:28px;font-weight:600;letter-spacing:-.4px}
+.qd-family .window-content :where(h3,h4){font-size:16px;font-weight:500}
+.qd-family .window-content :where(.form-footer){flex:0 0 auto;display:flex;flex-wrap:wrap;gap:8px;padding-top:12px}
+.qd-family .window-content :where(.form-footer) button{min-width:0;flex:1 1 120px;white-space:normal}
+.qd-family .qd-brand{display:flex;align-items:center;gap:12px}
+.qd-family .qd-brand-mark{display:grid;place-content:center;flex:0 0 40px;height:40px;border:1px solid var(--qd-accent);border-radius:12px;background:#173340;color:var(--qd-accent);font-size:27px;font-weight:600}
+.qd-family .qd-brand strong{display:block;font-size:19px;letter-spacing:1.5px}
+.qd-family .qd-brand small{display:block;color:var(--qd-muted);font-size:10px;letter-spacing:1.4px;margin-top:4px}
+.qd-family .qd-equal-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.qd-family .qd-equal-cards>div{min-width:0;grid-column:auto;grid-row:auto;flex:initial;padding:12px;text-align:center}
+@container qd-family (max-width:650px){
+  .qd-family .window-content :where(h1,h2){font-size:24px}
+  .qd-family .window-content :where(.form-footer){position:sticky;bottom:0;background:var(--qd-bg);z-index:10;padding:12px}
+}
+
+/* Explorador — composição própria sobre os mesmos tokens. */
+
+.qd-family[data-qd-module="quedaco-explorador"]{--qe-bg:var(--qd-bg);--qe-panel:var(--qd-panel);--qe-line:var(--qd-line);--qe-text:var(--qd-text);--qe-muted:var(--qd-muted);--qe-accent:var(--qd-accent)}
+.qd-family[data-qd-module="quedaco-explorador"] .qe-main{padding:24px;gap:24px}
+.qd-family[data-qd-module="quedaco-explorador"] :is(.qe-card,.qe-map-panel,.qe-list-panel,.qe-inspector){border-radius:12px;padding:16px}
+.qd-family[data-qd-module="quedaco-explorador"] .qe-sidebar{padding:24px 16px;gap:24px;background:var(--qd-panel)}
+@container qd-family (max-width:1000px){.qd-family[data-qd-module="quedaco-explorador"] .qe-shell{grid-template-columns:190px minmax(0,1fr)}.qd-family[data-qd-module="quedaco-explorador"] .qe-workspace{grid-template-columns:minmax(0,1fr)}.qd-family[data-qd-module="quedaco-explorador"] .qe-filter{grid-template-columns:minmax(0,1fr)}}
+@container qd-family (max-width:650px){.qd-family[data-qd-module="quedaco-explorador"] .qe-shell{grid-template-columns:minmax(0,1fr);overflow:auto;align-content:start}.qd-family[data-qd-module="quedaco-explorador"] .qe-sidebar{padding:16px;border-right:0;border-bottom:1px solid var(--qd-line);overflow:visible}.qd-family[data-qd-module="quedaco-explorador"] .qe-sidebar nav{display:flex;flex-wrap:wrap;gap:8px}.qd-family[data-qd-module="quedaco-explorador"] .qe-sidebar nav button{flex:1 1 110px}.qd-family[data-qd-module="quedaco-explorador"] .qe-main{padding:16px;overflow:visible}.qd-family[data-qd-module="quedaco-explorador"] .qe-filter{grid-template-columns:minmax(0,1fr)}}
+
+.qd-family .window-content button:is([aria-pressed=true],[aria-current=page],[aria-selected=true]){background:#173743;border-color:var(--qd-accent);color:var(--qd-accent);box-shadow:none}
+.qd-family .window-content :where(label,small){font-family:QuedacoUI,system-ui,sans-serif}
+.qd-family .window-content :where(h1,h2,h3,h4){color:var(--qd-text)}
+
+
