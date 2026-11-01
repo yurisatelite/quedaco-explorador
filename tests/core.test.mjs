@@ -33,12 +33,16 @@ test('enumeration excludes padding and refuses square or excessive grids', () =>
 });
 test('player API views hide metadata until fully explored and are detached copies', () => {
   const scene = mockScene(), offset = {i: 1, j: 1};
-  scene.flags[ID] = {hexes: {'1_1': {state: 'hidden', name: 'Ruína secreta', tags: ['rota']}}};
+  scene.flags[ID] = {hexes: {'1_1': {state: 'hidden', name: 'Ruína secreta', tags: ['rota'], pointsOfInterest:'Ponte caída', gmNotes:'Emboscada ao amanhecer', organizations:['guilda-das-nuvens']}}};
   assert.equal(readHex(scene, offset).name, '');
+  assert.equal(readHex(scene, offset).gmNotes, '');
   assert.equal(readHex(scene, offset, {isGM: true}).name, 'Ruína secreta');
   scene.flags[ID].hexes['1_1'].state = 'explored';
-  const hex = readHex(scene, offset); hex.tags.push('mutação');
+  const hex = readHex(scene, offset); hex.tags.push('mutação'); hex.organizations.push('mutação');
   assert.deepEqual(scene.flags[ID].hexes['1_1'].tags, ['rota']);
+  assert.equal(hex.pointsOfInterest, 'Ponte caída'); assert.equal(hex.gmNotes, '');
+  assert.equal(readHex(scene, offset, {isGM: true}).gmNotes, 'Emboscada ao amanhecer');
+  assert.deepEqual(scene.flags[ID].hexes['1_1'].organizations, ['guilda-das-nuvens']);
 });
 test('legacy parser handles the three states and skips malformed coordinates', () => {
   const records = legacyRecords({a: {offset: {i: 1, j: 1}, reveal: true}, b: {offset: {i: 2, j: 2}, reveal: 'partial'}, c: {offset: {i: 3, j: 3}, reveal: false}, d: {offset: {i: '4', j: 4}, reveal: true}});

@@ -61,6 +61,26 @@
 .qe-cell text { fill:#fff; font-size:12px; font-family:Arial,sans-serif; text-anchor:middle; dominant-baseline:middle; paint-order:stroke; stroke:#111827; stroke-width:3px; pointer-events:none; }
 .qe-map-help,.qe-hint { color:var(--qe-muted); font-size:11px; line-height:1.6; }
 .qe-inspector { display:flex; flex-direction:column; gap:16px; }
+.qe-hex-sheet { display:flex; flex-direction:column; gap:16px; }
+.qe-sheet-section { display:flex; flex-direction:column; gap:12px; padding:14px; border:1px solid var(--qe-line); border-radius:10px; background:#141e29; }
+.qe-sheet-section > header,.qe-section-title { display:flex; align-items:center; gap:10px; min-width:0; }
+.qe-sheet-section > header > i,.qe-section-title > i { display:grid; place-items:center; flex:0 0 30px; width:30px; height:30px; border-radius:8px; color:#9eeaf7; background:#173744; }
+.qe-sheet-section header div,.qe-section-title div { min-width:0; }
+.qe-sheet-section header small,.qe-section-title small { display:block; color:var(--qe-muted); font-size:9px; letter-spacing:1.2px; }
+.qe-sheet-section h3,.qe-section-title h3 { font-size:14px; }
+.qe-sheet-public { border-color:#315a65; }
+.qe-sheet-gm { border-color:#634870; background:#201b2a; }
+.qe-sheet-gm > header > i { color:#e4c8ff; background:#352444; }
+.qe-form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.qe-npc-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:8px; }
+.qe-npc-card { display:grid; grid-template-columns:42px minmax(0,1fr) auto; gap:10px; align-items:center; min-width:0; padding:8px; border:1px solid var(--qe-line); border-radius:8px; background:#111a24; }
+.qe-npc-card img { width:42px; height:42px; object-fit:cover; border-radius:6px; border:1px solid #496074; }
+.qe-npc-card > div { min-width:0; display:flex; flex-direction:column; gap:3px; }
+.qe-npc-card strong,.qe-npc-card small { overflow-wrap:anywhere; }
+.qe-npc-card small { color:var(--qe-muted); font-size:10px; }
+.qe-app .qe-shell .qe-npc-card button { min-height:28px; min-width:28px; padding:4px; color:#f4b4b4; }
+.qe-npc-tags { display:flex; flex-wrap:wrap; gap:3px; }
+.qe-npc-tags span { padding:2px 4px; border:1px solid #40546a; border-radius:4px; color:#b9c9d7; font-size:9px; }
 .qe-inspector-head { display:flex; flex-direction:column; align-items:flex-start; gap:12px; }
 .qe-inspector code { color:var(--qe-muted); font-size:11px; overflow-wrap:anywhere; }
 .qe-inspector form,.qe-settings form { display:flex; flex-direction:column; gap:16px; }
@@ -137,4 +157,5 @@
   .qe-sidebar-bottom { margin-top:0; }
   .qe-main { overflow:visible; }
   .qe-filter { grid-template-columns:minmax(0,1fr); }
+  .qe-form-grid { grid-template-columns:minmax(0,1fr); }
 }

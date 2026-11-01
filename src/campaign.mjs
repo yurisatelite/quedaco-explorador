@@ -27,7 +27,7 @@ export function createCampaignBridge(game, explorer, {emit = () => {}} = {}) {
   }
   function registerCatalog(next) {
     const list = entries => Array.isArray(entries) ? entries.filter(e => e && typeof e.id === 'string' && typeof e.name === 'string').map(e => ({id: e.id.slice(0,100), name: e.name.slice(0,200), regionId: String(e.regionId ?? ''), color: String(e.color ?? '')})) : [];
-    catalog = {regions: list(next.regions), places: list(next.places), tags: Array.isArray(next.tags) ? next.tags.map(t => ({id: String(t.id), label: String(t.label)})) : []};
+    catalog = {regions: list(next.regions), places: list(next.places), organizations: list(next.organizations ?? next.factions), climates: list(next.climates), tags: Array.isArray(next.tags) ? next.tags.map(t => ({id: String(t.id), label: String(t.label)})) : []};
     emit(`${ID}:catalogChanged`, getCatalog());
   }
   function getCatalog() {
@@ -38,7 +38,12 @@ export function createCampaignBridge(game, explorer, {emit = () => {}} = {}) {
   function getNPCs(hexId) {
     const hex = explorer.getHex(hexId);
     if (!game.user.isGM && (!hex.active || hex.state !== 'explored')) return {present: [], regional: []};
-    const simple = n => ({uuid: n.uuid, name: n.name, role: n.role ?? 'extra', img: n.img}), all = npcs();
+    const organizations = new Map((getCatalog().organizations ?? []).map(row => [String(row.id), String(row.name ?? '')]));
+    const simple = n => {
+      const organizationId = String(n.organizationId ?? n.factionId ?? '');
+      return {uuid: n.uuid, name: n.name, role: n.role ?? 'extra', img: n.img || 'icons/svg/mystery-man.svg', organizationId,
+        organization: String(n.organizationName ?? n.factionName ?? n.organization ?? n.faction ?? organizations.get(organizationId) ?? ''), tags: Array.isArray(n.tags) ? n.tags.map(String).slice(0,10) : []};
+    }, all = npcs();
     return {
       present: all.filter(n => n.explorerLocation?.hexId === hex.id).map(simple),
       regional: game.user.isGM ? all.filter(n => !n.explorerLocation?.hexId && hex.regionId && n.regionId === hex.regionId).map(simple) : []
@@ -90,7 +95,7 @@ export function createCampaignBridge(game, explorer, {emit = () => {}} = {}) {
       if (!npcs().some(n => n.uuid === actorUuid && n.explorerLocation?.hexId === hexId)) throw Error('Este NPC não está atribuído a esta área.');
       await provider.setNpcExplorerLocation(actorUuid, null); emit(`${ID}:npcLocationChanged`, {actorUuid, hexId: null});
     },
-    getNPCCandidates: () => game.user.isGM ? npcs().map(n => ({uuid: n.uuid, name: n.name})) : [],
+    getNPCCandidates: () => game.user.isGM ? npcs().map(n => ({uuid: n.uuid, name: n.name, role: n.role ?? '', organization: n.organizationName ?? n.factionName ?? n.organization ?? n.faction ?? ''})) : [],
     async setCurrentLocation(hexId) {
       gm(); const hex = explorer.getHex(hexId);
       if (!hex.active || hex.state !== 'explored') throw Error('A localização do grupo precisa ser uma área ativa e explorada.');

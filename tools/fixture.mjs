@@ -51,7 +51,7 @@ export async function uiFixture() {
   bridge.registerCatalog({regions:[{id:'forah',name:'Protetorado de Forah'},{id:'mirmir',name:'Deserto de Mirmir'}],places:[],tags:[{id:'role:merchant',label:'Mercador'},{id:'rota',label:'Rota'}]});
   // Provedores públicos simulados (o Explorador só os alcança pela API da família).
   game.modules.set('quedaco',{active:true,api:{family:'quedaco',contractVersion:1,id:'quedaco',capabilities:{npcDatabase:true,explorerCatalog:true,npcLocation:true},
-    listNpcs: () => Array.from(game.actors).filter(a => a.flags?.quedaco?.npc && a.testUserPermission(game.user,'OBSERVER')).map(a => ({uuid:a.uuid,name:a.name,img:a.img,role:a.flags.quedaco.npc.role,regionId:a.flags.quedaco.npc.regionId,explorerLocation:a.flags.quedaco.npc.explorerLocation ?? null})),
+    listNpcs: () => Array.from(game.actors).filter(a => a.flags?.quedaco?.npc && a.testUserPermission(game.user,'OBSERVER')).map(a => ({uuid:a.uuid,name:a.name,img:a.img,role:a.flags.quedaco.npc.role,regionId:a.flags.quedaco.npc.regionId,organizationId:a.flags.quedaco.npc.organizationId,organizationName:a.flags.quedaco.npc.organizationName,tags:a.flags.quedaco.npc.tags,explorerLocation:a.flags.quedaco.npc.explorerLocation ?? null})),
     getExplorerCatalog: () => ({regions:[],places:[],tags:[]}),
     setNpcExplorerLocation: async (uuid, location) => {
       if (!game.user.isGM) throw Error('Somente a Mestra pode atribuir NPCs a uma área.');

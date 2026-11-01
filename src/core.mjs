@@ -47,7 +47,9 @@ export function validateHex(input, offset, config = DEFAULT_CONFIG) {
   const number = input.number ?? null;
   if (number !== null && (!Number.isSafeInteger(number) || number < 1 || number > 999999)) throw Error('Número da área inválido.');
   return {i: offset.i, j: offset.j, active: input.active !== false, number, state, name: text(input.name), terrain: text(input.terrain, 80), region: text(input.region), regionId: text(input.regionId, 100), placeId: text(input.placeId, 100),
-    description: text(input.description, 12000), tags: [...new Set(tags.map(t => text(t, 60)).filter(Boolean))].slice(0, 30),
+    description: text(input.description, 12000), pointsOfInterest: text(input.pointsOfInterest, 2000), resources: text(input.resources, 1000), hazards: text(input.hazards, 1000), climate: text(input.climate, 300), organizations: [...new Set((Array.isArray(input.organizations) ? input.organizations : String(input.organizations ?? '').split(',')).map(t => text(t, 100)).filter(Boolean))].slice(0, 20),
+    gmNotes: text(input.gmNotes, 12000), secrets: text(input.secrets, 12000), encounters: text(input.encounters, 6000), treasure: text(input.treasure, 6000), hooks: text(input.hooks, 6000),
+    tags: [...new Set(tags.map(t => text(t, 60)).filter(Boolean))].slice(0, 30),
     sceneUuid: link(input.sceneUuid), journalUuid: link(input.journalUuid)};
 }
 export function geometrySignature(scene) {
@@ -82,8 +84,10 @@ export function readHex(scene, offset, {isGM = false} = {}) {
   const record = validateHex(scene.flags?.[ID]?.hexes?.[offsetKey(offset)] ?? {}, offset, config);
   const number = record.number ?? offset.number ?? enumerateHexes(scene).find(h => h.key === offsetKey(offset))?.number ?? null;
   const base = {id: hexId(scene.id, offset), sceneId: scene.id, label: labelFor({number}), shortCode: shortCode(number)};
+  const privateFields = {gmNotes: '', secrets: '', encounters: '', treasure: '', hooks: ''};
   if (!isGM && (record.state !== 'explored' || !record.active)) return {...base, i: offset.i, j: offset.j, number, active: record.active, state: record.state,
-    name: '', terrain: '', region: '', regionId: '', placeId: '', description: '', tags: [], sceneUuid: '', journalUuid: ''};
+    name: '', terrain: '', region: '', regionId: '', placeId: '', description: '', pointsOfInterest: '', resources: '', hazards: '', climate: '', organizations: [], ...privateFields, tags: [], sceneUuid: '', journalUuid: ''};
+  if (!isGM) return {...base, ...clone(record), ...privateFields, number};
   return {...base, ...clone(record), number};
 }
 export function summary(hexes) {

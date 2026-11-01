@@ -33,6 +33,8 @@ try {
   await page.locator('g[data-hex="sceneA:1:1"]').click();
   await page.waitForFunction(() => document.querySelector('[data-selected-area]')?.dataset.selectedArea === 'sceneA:1:1');
   await page.locator('[data-hex-form] [name="name"]').fill('Torre de integração');
+  await page.locator('[data-hex-form] [name="pointsOfInterest"]').fill('Torre de vigia e fonte antiga');
+  await page.locator('[data-hex-form] [name="gmNotes"]').fill('A sentinela chega ao amanhecer.');
   await page.locator('[data-hex-form] [name="regionId"]').selectOption('mirmir');
   await page.locator('[data-hex-form] [type="submit"]').click();
   await page.waitForFunction(() => window.previewFixture.api.getHex('sceneA:1:1').name === 'Torre de integração');
@@ -45,6 +47,8 @@ try {
   await page.locator('[data-batch-form] [type="submit"]').click();
   await page.waitForFunction(() => window.previewFixture.api.getHex('sceneA:1:2').regionId === 'forah');
   assert.equal(await page.evaluate(() => window.previewFixture.api.getHex('sceneA:1:1').name),'Torre de integração');
+  assert.equal(await page.evaluate(() => window.previewFixture.api.getHex('sceneA:1:1').pointsOfInterest),'Torre de vigia e fonte antiga');
+  assert.equal(await page.evaluate(() => window.previewFixture.api.getHex('sceneA:1:1').gmNotes),'A sentinela chega ao amanhecer.');
   await page.screenshot({path: output + 'explorador-selecao-multipla.png',fullPage:true});
   await page.locator('[data-command="clear"]').click();
   await page.locator('g[data-hex="sceneA:0:0"]').click();

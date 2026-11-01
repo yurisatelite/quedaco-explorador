@@ -21,6 +21,13 @@ test('NPC exact presence differs from regional suggestions, survives renumbering
   await f.api.removeNPC(actor.uuid,'sceneA:2:2');
   assert.equal(f.api.getNPCs('sceneA:2:2').present.length,0);
 });
+test('NPC cards receive token, role, organization and tags from the public QUEDAÇO API', async () => {
+  const f = await uiFixture(), actor = npc('envoy','diplomat');
+  actor.img = 'tokens/envoy.webp'; actor.flags.quedaco.npc.organizationName = 'Círculo de Sal'; actor.flags.quedaco.npc.tags = ['diplomata','mensageiro'];
+  f.game.actors.set(actor.id,actor); await f.api.assignNPC(actor.uuid,'sceneA:2:2');
+  const present = f.api.getNPCs('sceneA:2:2').present[0];
+  assert.equal(present.img,'tokens/envoy.webp'); assert.equal(present.organization,'Círculo de Sal'); assert.deepEqual(present.tags,['diplomata','mensageiro']);
+});
 test('players cannot assign NPCs and actor permissions protect names', async () => {
   const f = await uiFixture(), actor = npc('secret'); f.game.actors.set(actor.id,actor);
   await f.api.assignNPC(actor.uuid,'sceneA:2:2'); f.game.user.isGM = false;

@@ -1,5 +1,12 @@
 # Histórico
 
+## 0.3.6 · 01/11/2026
+
+- Cada hex agora tem uma ficha hierarquizada: identidade, informações conhecidas pelo grupo, presença de NPCs, diário e painel reservado à Mestra.
+- Informações públicas: pontos de interesse, recursos, perigos, clima e organizações conhecidas; tornam-se visíveis somente quando o hex é explorado.
+- Informações exclusivas da Mestra: notas de condução, segredos, encontros, tesouros e ganchos.
+- NPCs do cadastro exibem token, função, organização e tags quando a API pública do QUEDAÇO fornecer esses campos.
+
 ## 0.3.4 · 14/10/2026
 
 - Consulta catálogo compartilhado ao vivo; criação de tags delegada ao QUEDAÇO quando disponível.

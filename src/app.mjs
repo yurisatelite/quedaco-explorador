@@ -31,6 +31,8 @@ export function createExplorerApp({getApi, getSelection, getSelections = () => [
       if (selected?.region && !regions.some(r => r.id === regionId)) regions.push({id: regionId, name: selected.region});
       const tags = new Map(catalog.tags.map(t => [t.id, t]));
       for (const tag of selected?.tags ?? []) if (!tags.has(tag)) tags.set(tag, {id: tag, label: tag});
+      const organizations = new Map((catalog.organizations ?? catalog.factions ?? []).map(org => [org.id, {id:org.id, name:org.name ?? org.label ?? org.id}]));
+      for (const id of selected?.organizations ?? []) if (!organizations.has(id)) organizations.set(id, {id, name:id});
       const npcs = selected ? api.getNPCs?.(selected.id) ?? {present: [], regional: []} : {present: [], regional: []};
       const r = scene?.dimensions?.sceneRect;
       return {isGM, hasScene: !!scene, sceneName: scene?.name, sceneId: scene?.id, enabled: config.enabled, config, error,
@@ -48,6 +50,7 @@ export function createExplorerApp({getApi, getSelection, getSelections = () => [
         regions: regions.map(r => ({...r, selected: !multiple && r.id === regionId})), noRegion: !regionId,
         places: catalog.places.map(p => ({...p, selected: !multiple && p.id === selected?.placeId})),
         tags: [...tags.values()].map(t => ({...t, selected: !multiple && selected?.tags.includes(t.id)})),
+        organizations: [...organizations.values()].map(org => ({...org, selected: !multiple && selected?.organizations.includes(org.id)})),
         filtered: filtered.slice(0,200).map(h => ({...h, stateLabel: h.active ? STATES[h.state] : 'Desativada', selected: selectionIds.includes(h.id)})), limited: filtered.length > 200, filteredCount: filtered.length,
         cells, viewBox: r ? `${r.x} ${r.y} ${r.width} ${r.height}` : '0 0 100 100', background: safeBackground(scene?.background?.src), bounds: r,
         legacy: !!scene?.flags?.['world-explorer']?.gridData, hasSelection: !!selected, npcs, npcCandidates: api.getNPCCandidates?.() ?? [],
@@ -74,12 +77,13 @@ export function createExplorerApp({getApi, getSelection, getSelections = () => [
       root.querySelector('[data-filter-form]')?.addEventListener('submit', e => {e.preventDefault(); const data = new FormData(e.target); this.search = String(data.get('search')); this.filter = String(data.get('state')); this.render({force:true});});
       for (const selector of ['[data-hex-form]', '[data-batch-form]']) root.querySelector(selector)?.addEventListener('submit', e => {
         e.preventDefault(); const data = new FormData(e.target), patch = {};
-        for (const field of ['name','terrain','description','sceneUuid','journalUuid']) if (data.has(field) && data.get(field) !== '__keep') patch[field] = String(data.get(field));
+        for (const field of ['name','terrain','description','pointsOfInterest','resources','hazards','climate','gmNotes','secrets','encounters','treasure','hooks','sceneUuid','journalUuid']) if (data.has(field) && data.get(field) !== '__keep') patch[field] = String(data.get(field));
         if (data.has('regionId') && data.get('regionId') !== '__keep') {
           const value = String(data.get('regionId')), region = context.regions.find(r => r.id === value);
           patch.regionId = value.startsWith('legacy:') ? '' : value; patch.region = region?.name ?? ''; patch.placeId = '';
         }
         if (data.has('placeId') && data.get('placeId') !== '__keep') patch.placeId = String(data.get('placeId'));
+        if (data.has('organizations')) patch.organizations = data.getAll('organizations');
         if (!context.multiple || data.getAll('tags').length) patch.tags = data.getAll('tags');
         run(async () => {await api.updateHexes(context.selectionIds, patch, {tagMode: context.multiple ? 'add' : 'replace'}); ui.notifications.info(`${context.selectionCount} área(s) salva(s).`);});
       });
